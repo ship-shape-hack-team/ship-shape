@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/ambient-code/agentready/compare/v1.0.1...v1.0.2) (2025-11-21)
+
+
+### Bug Fixes
+
+* replace all remaining elif with elsif in developer-guide ([73f16fc](https://github.com/ambient-code/agentready/commit/73f16fc746aa97788bfa776d5660158be3139318))
+
 ## [1.0.1](https://github.com/ambient-code/agentready/compare/v1.0.0...v1.0.1) (2025-11-21)
 
 
