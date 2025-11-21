@@ -4,6 +4,208 @@
 
 ---
 
+## Critical Issues (P0)
+
+### Report Header with Repository Metadata
+
+**Priority**: P0 (Critical - Blocking Usability)
+
+**Description**: Add prominent report header showing what repository/agent/code was scanned. Currently reports lack context about what was assessed.
+
+**Problem**: Users cannot identify what the report is about without digging into the details. No repository name, path, timestamp, or assessment context visible at the top.
+
+**Requirements**:
+- **Prominent header section** at the top of all report formats (HTML, Markdown, JSON)
+- Repository name (bold, large font)
+- Repository path (absolute path on filesystem or GitHub URL)
+- Assessment timestamp (human-readable: "November 21, 2025 at 2:11 AM")
+- Branch name and commit hash
+- AgentReady version used for assessment
+- Who ran the assessment (username@hostname)
+- Command used: `agentready assess /path/to/repo --verbose`
+
+**HTML Report Header Design**:
+```html
+<header class="report-header">
+  <div class="repo-info">
+    <h1>AgentReady Assessment Report</h1>
+    <div class="repo-name">Repository: agentready</div>
+    <div class="repo-path">/Users/jeder/repos/sk/agentready</div>
+    <div class="repo-git">Branch: 001-agentready-scorer | Commit: d49947c</div>
+  </div>
+  <div class="meta-info">
+    <div>Assessed: November 21, 2025 at 2:11 AM</div>
+    <div>AgentReady Version: 1.0.0</div>
+    <div>Run by: jeder@macbook</div>
+  </div>
+</header>
+```
+
+**Markdown Report Header**:
+```markdown
+# 🤖 AgentReady Assessment Report
+
+**Repository**: agentready
+**Path**: `/Users/jeder/repos/sk/agentready`
+**Branch**: `001-agentready-scorer` | **Commit**: `d49947c`
+**Assessed**: November 21, 2025 at 2:11 AM
+**AgentReady Version**: 1.0.0
+**Run by**: jeder@macbook
+
+---
+```
+
+**JSON Report Metadata**:
+```json
+{
+  "metadata": {
+    "agentready_version": "1.0.0",
+    "assessment_timestamp": "2025-11-21T02:11:05Z",
+    "assessment_timestamp_human": "November 21, 2025 at 2:11 AM",
+    "executed_by": "jeder@macbook",
+    "command": "agentready assess . --verbose",
+    "working_directory": "/Users/jeder/repos/sk/agentready"
+  },
+  "repository": { ... }
+}
+```
+
+**Implementation**:
+- Add metadata collection to Scanner
+- Update all reporter templates (HTML, Markdown)
+- Enhance Assessment model with metadata field
+- Position header prominently (before score summary)
+
+**Acceptance Criteria**:
+- ✅ User can immediately identify what repository was assessed
+- ✅ Timestamp shows when assessment was run
+- ✅ Git context (branch, commit) visible
+- ✅ AgentReady version tracked for reproducibility
+
+**Related**: Report generation, usability, debugging
+
+**Notes**:
+- This is blocking adoption - users confused about report context
+- Critical for multi-repository workflows
+- Needed for CI/CD integration (track which build)
+
+---
+
+### Improve HTML Report Design (Font Size & Color Scheme)
+
+**Priority**: P0 (Critical - Poor User Experience)
+
+**Description**: Completely redesign HTML report color scheme and increase all font sizes by at least 4 points for readability.
+
+**Problems**:
+1. **Color scheme is "hideous"** (user feedback) - current purple gradient doesn't work
+2. **Font sizes too small** - hard to read on modern displays
+3. **Poor contrast** - some text hard to distinguish
+
+**New Color Scheme** (Dark/Professional):
+```css
+:root {
+  /* Base colors - mostly black, dark blue, purple, white */
+  --background: #0a0e27;           /* Almost black with blue tint */
+  --surface: #1a1f3a;              /* Dark blue surface */
+  --surface-elevated: #252b4a;     /* Slightly lighter surface */
+
+  /* Primary colors */
+  --primary: #8b5cf6;              /* Purple (accent) */
+  --primary-light: #a78bfa;        /* Light purple */
+  --primary-dark: #6d28d9;         /* Dark purple */
+
+  /* Text colors */
+  --text-primary: #f8fafc;         /* Almost white */
+  --text-secondary: #cbd5e1;       /* Light gray */
+  --text-muted: #94a3b8;           /* Muted gray */
+
+  /* Status colors */
+  --success: #10b981;              /* Green (pass) */
+  --warning: #f59e0b;              /* Amber (warning) */
+  --danger: #ef4444;               /* Red (fail) */
+  --neutral: #64748b;              /* Gray (skipped) */
+
+  /* UI elements */
+  --border: #334155;               /* Dark border */
+  --shadow: rgba(0, 0, 0, 0.5);   /* Deep shadows */
+}
+```
+
+**Font Size Increases** (+4pt minimum):
+```css
+/* Current → New */
+body { font-size: 14px → 18px; }
+h1 { font-size: 28px → 36px; }
+h2 { font-size: 24px → 30px; }
+h3 { font-size: 20px → 26px; }
+.score { font-size: 48px → 56px; }
+.attribute-name { font-size: 16px → 22px; }
+.evidence { font-size: 13px → 17px; }
+code { font-size: 13px → 16px; }
+```
+
+**Design Mockup**:
+```
+┌─────────────────────────────────────────────────────┐
+│ [Dark navy blue background #1a1f3a]                │
+│                                                     │
+│  🤖 AgentReady Assessment Report                   │
+│  Repository: agentready                            │
+│  /Users/jeder/repos/sk/agentready                  │
+│  [White text #f8fafc, 18px base font]             │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│ [Purple accent card #8b5cf6]                       │
+│                                                     │
+│           75.4 / 100                               │
+│           [56px, bold, white]                      │
+│           🥇 Gold                                   │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Implementation Checklist**:
+- [ ] Replace gradient backgrounds with dark blue/black
+- [ ] Update all font sizes (+4pt minimum)
+- [ ] Use purple (#8b5cf6) sparingly as accent color
+- [ ] Ensure white text on dark backgrounds (WCAG AA)
+- [ ] Update certification level colors
+- [ ] Redesign score cards with new scheme
+- [ ] Test with colorblind simulators
+- [ ] Add light mode as alternative (with same professional palette)
+
+**Before/After Color Comparison**:
+```
+Current (Problems):
+- Purple gradient everywhere: #667eea → #764ba2 ❌
+- Small text: 14px base ❌
+- Busy, overwhelming ❌
+
+New (Professional):
+- Dark blue/black base: #0a0e27, #1a1f3a ✅
+- Purple accents only: #8b5cf6 ✅
+- Large text: 18px base ✅
+- Clean, readable ✅
+```
+
+**Acceptance Criteria**:
+- ✅ All text easily readable (18px minimum body text)
+- ✅ Color scheme uses black, dark blue, purple, white palette
+- ✅ High contrast (WCAG 2.1 AA compliant)
+- ✅ Professional appearance suitable for Red Hat engineering
+- ✅ Purple used as accent, not dominant color
+
+**Related**: HTML report generation, UX, accessibility
+
+**Notes**:
+- Current design blocks user adoption (visual issues)
+- This is the first thing users see - must be excellent
+- Consider adding screenshot to docs after redesign
+- Font size critical for presentations and stakeholder reviews
+
+---
+
 ## Future Features
 
 ### Bootstrap New GitHub Repositories
@@ -999,4 +1201,13 @@ github:
 
 **Created**: 2025-11-21
 **Last Updated**: 2025-11-21
-**Total Items**: 9
+**Total Items**: 11
+
+## Priority Summary
+
+- **P0 (Critical)**: 2 items - Report Header Metadata, HTML Design Improvements
+- **P1 (Critical)**: 1 item - Align Subcommand
+- **P2 (High Value)**: 2 items - Interactive Dashboard, GitHub App Integration
+- **P3 (Important)**: 2 items - Report Schema Versioning, AgentReady Repository Agent
+- **P4 (Enhancement)**: 3 items - Research Report Utility, Repomix Integration, Customizable Themes
+- **P5 (Future)**: 1 item - Bootstrap New Repositories
