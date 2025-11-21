@@ -183,8 +183,111 @@ agentready init --repo my-project --language python --repomix
 
 ---
 
+### AgentReady Repository Agent
+
+**Priority**: P3 (Important)
+
+**Description**: Create a specialized Claude Code agent for the AgentReady repository to assist with development, testing, and maintenance tasks.
+
+**Requirements**:
+- Agent with deep knowledge of AgentReady architecture
+- Understands assessment workflow, scoring logic, and report generation
+- Can help with:
+  - Implementing new assessors
+  - Enhancing existing assessors
+  - Writing tests for new features
+  - Debugging assessment issues
+  - Improving report templates
+  - Optimizing performance
+
+**Use Case**:
+```bash
+# In Claude Code, use the agentready-dev agent
+/agentready-dev implement new assessor for dependency security scanning
+/agentready-dev debug why Python type annotation detection is failing
+/agentready-dev optimize assessment performance for large repositories
+```
+
+**Features**:
+- Pre-loaded context about AgentReady codebase structure
+- Knowledge of assessment attributes and scoring algorithm
+- Understanding of tier-based weighting system
+- Familiar with reporter implementations (HTML, Markdown)
+- Can generate new assessors following established patterns
+
+**Implementation**:
+- Create `.claude/agents/agentready-dev.md` with agent specification
+- Include links to key design documents (data-model.md, plan.md, research.md)
+- Provide common development patterns and examples
+- Reference test structure and coverage requirements
+
+**Related**: Development workflow, code generation, testing
+
+**Notes**:
+- Agent should follow constitution principles (library-first, TDD when requested)
+- Should know about stub assessors and how to expand them
+- Can help with performance benchmarking and optimization
+- Should understand the research report structure and attribute definitions
+
+---
+
+### Customizable HTML Report Themes
+
+**Priority**: P4 (Enhancement)
+
+**Description**: Allow users to customize the appearance of HTML reports with themes, color schemes, and layout options.
+
+**Requirements**:
+- Theme system for HTML reports
+- Pre-built themes (default, dark mode, high contrast, colorblind-friendly)
+- Custom theme support via configuration
+- Maintain accessibility standards (WCAG 2.1 AA)
+- Preview themes before applying
+
+**Use Case**:
+```yaml
+# .agentready-config.yaml
+report_theme: dark  # or 'light', 'high-contrast', 'custom'
+
+custom_theme:
+  primary_color: "#2563eb"
+  success_color: "#10b981"
+  warning_color: "#f59e0b"
+  danger_color: "#ef4444"
+  background: "#1e293b"
+  text: "#e2e8f0"
+  font_family: "Inter, sans-serif"
+```
+
+**Features**:
+- Multiple built-in themes
+- Dark mode support
+- Custom color palettes
+- Font selection (system fonts + web-safe fonts)
+- Layout density options (compact, comfortable, spacious)
+- Logo/branding customization
+- Export theme as reusable configuration
+
+**Implementation**:
+- CSS custom properties (variables) for theming
+- Theme loader in HTMLReporter
+- Validate theme configurations
+- Preserve accessibility in all themes
+- Add theme preview command: `agentready theme-preview dark`
+
+**Related**: HTML report generation, user experience
+
+**Notes**:
+- All themes must maintain WCAG 2.1 AA contrast ratios
+- Dark mode should invert appropriately, not just be dark
+- Consider colorblind-friendly palettes (Viridis, ColorBrewer)
+- Custom themes should be shareable (export/import)
+- Could add theme gallery in documentation
+
+---
+
 ## Backlog Metadata
 
 **Created**: 2025-11-21
 **Last Updated**: 2025-11-21
-**Total Items**: 4
+**Total Items**: 6

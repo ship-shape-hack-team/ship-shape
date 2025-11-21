@@ -23,6 +23,7 @@ from ..assessors.stub_assessors import (
 from ..assessors.testing import PreCommitHooksAssessor, TestCoverageAssessor
 from ..models.config import Config
 from ..reporters.html import HTMLReporter
+from ..reporters.markdown import MarkdownReporter
 from ..services.research_loader import ResearchLoader
 from ..services.scanner import Scanner
 
@@ -170,11 +171,21 @@ def run_assessment(repository_path, verbose, output_dir, config_path):
     html_file = output_path / f"report-{timestamp}.html"
     html_reporter.generate(assessment, html_file)
 
+    # Generate Markdown report
+    markdown_reporter = MarkdownReporter()
+    markdown_file = output_path / f"report-{timestamp}.md"
+    markdown_reporter.generate(assessment, markdown_file)
+
     # Create latest symlinks
     latest_json = output_path / "assessment-latest.json"
     latest_html = output_path / "report-latest.html"
+    latest_md = output_path / "report-latest.md"
 
-    for latest, target in [(latest_json, json_file), (latest_html, html_file)]:
+    for latest, target in [
+        (latest_json, json_file),
+        (latest_html, html_file),
+        (latest_md, markdown_file),
+    ]:
         if latest.exists():
             latest.unlink()
         try:
@@ -200,6 +211,7 @@ def run_assessment(repository_path, verbose, output_dir, config_path):
     click.echo(f"\nReports generated:")
     click.echo(f"  JSON: {json_file}")
     click.echo(f"  HTML: {html_file}")
+    click.echo(f"  Markdown: {markdown_file}")
 
 
 def load_config(config_path: Path) -> Config:
