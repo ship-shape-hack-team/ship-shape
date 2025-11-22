@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/ambient-code/agentready/compare/v1.6.1...v1.6.2) (2025-11-22)
+
+
+### Bug Fixes
+
+* address P1 code quality issues from code review ([#36](https://github.com/ambient-code/agentready/issues/36)) ([5976332](https://github.com/ambient-code/agentready/commit/5976332d10e714251b3752cfc2d0f45a333db580))
+
 ## [1.6.1](https://github.com/ambient-code/agentready/compare/v1.6.0...v1.6.1) (2025-11-22)
 
 
