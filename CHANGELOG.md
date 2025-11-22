@@ -1,3 +1,10 @@
+## [1.12.4](https://github.com/ambient-code/agentready/compare/v1.12.3...v1.12.4) (2025-11-22)
+
+
+### Bug Fixes
+
+* Sanitize sensitive data in HTML reports (fixes [#58](https://github.com/ambient-code/agentready/issues/58)) ([#67](https://github.com/ambient-code/agentready/issues/67)) ([6fbac76](https://github.com/ambient-code/agentready/commit/6fbac76e45943f10faa8b01a666e60e46e586ca4))
+
 ## [1.12.3](https://github.com/ambient-code/agentready/compare/v1.12.2...v1.12.3) (2025-11-22)
 
 
