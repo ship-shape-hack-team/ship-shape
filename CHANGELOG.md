@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/ambient-code/agentready/compare/v1.7.1...v1.8.0) (2025-11-22)
+
+
+### Features
+
+* implement report schema versioning ([#43](https://github.com/ambient-code/agentready/issues/43)) ([4c4752c](https://github.com/ambient-code/agentready/commit/4c4752cb465cd20e1a97cc16507b7a50c1dd52be))
+
 ## [1.7.1](https://github.com/ambient-code/agentready/compare/v1.7.0...v1.7.1) (2025-11-22)
 
 
