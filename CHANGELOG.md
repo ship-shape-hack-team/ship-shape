@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/ambient-code/agentready/compare/v1.12.4...v1.13.0) (2025-11-22)
+
+
+### Features
+
+* Implement OneCommandSetupAssessor (fixes [#75](https://github.com/ambient-code/agentready/issues/75)) ([#88](https://github.com/ambient-code/agentready/issues/88)) ([668ba1b](https://github.com/ambient-code/agentready/commit/668ba1b63179ef1ccc029ed4f299cdc24efc8137))
+
 ## [1.12.4](https://github.com/ambient-code/agentready/compare/v1.12.3...v1.12.4) (2025-11-22)
 
 
