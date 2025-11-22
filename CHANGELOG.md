@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/ambient-code/agentready/compare/v1.5.0...v1.6.0) (2025-11-22)
+
+
+### Features
+
+* Implement align subcommand for automated remediation (Issue [#14](https://github.com/ambient-code/agentready/issues/14)) ([#34](https://github.com/ambient-code/agentready/issues/34)) ([06f04dc](https://github.com/ambient-code/agentready/commit/06f04dc38f107f143a294248bd51df3763acef6f))
+
 # [1.5.0](https://github.com/ambient-code/agentready/compare/v1.4.0...v1.5.0) (2025-11-21)
 
 
