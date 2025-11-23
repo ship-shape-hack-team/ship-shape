@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/ambient-code/agentready/compare/v1.18.0...v1.19.0) (2025-11-23)
+
+
+### Features
+
+* Implement InlineDocumentationAssessor (fixes [#77](https://github.com/ambient-code/agentready/issues/77)) ([#94](https://github.com/ambient-code/agentready/issues/94)) ([e56e570](https://github.com/ambient-code/agentready/commit/e56e570466736328022eabf41ba983a57642ef31))
+
 # [1.18.0](https://github.com/ambient-code/agentready/compare/v1.17.0...v1.18.0) (2025-11-23)
 
 
