@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/ambient-code/agentready/compare/v1.16.0...v1.17.0) (2025-11-23)
+
+
+### Features
+
+* Implement SeparationOfConcernsAssessor (fixes [#78](https://github.com/ambient-code/agentready/issues/78)) ([#92](https://github.com/ambient-code/agentready/issues/92)) ([99bfe28](https://github.com/ambient-code/agentready/commit/99bfe282c2b3ee7be6f9ecc02feb295cc74ed2f0))
+
 # [1.16.0](https://github.com/ambient-code/agentready/compare/v1.15.0...v1.16.0) (2025-11-23)
 
 
