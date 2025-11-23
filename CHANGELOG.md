@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/ambient-code/agentready/compare/v1.22.0...v1.23.0) (2025-11-23)
+
+
+### Features
+
+* Implement BranchProtectionAssessor stub (fixes [#86](https://github.com/ambient-code/agentready/issues/86)) ([#98](https://github.com/ambient-code/agentready/issues/98)) ([44c4b17](https://github.com/ambient-code/agentready/commit/44c4b17203aa726b8841939f0dce3417c49560cb))
+
 # [1.22.0](https://github.com/ambient-code/agentready/compare/v1.21.0...v1.22.0) (2025-11-23)
 
 
