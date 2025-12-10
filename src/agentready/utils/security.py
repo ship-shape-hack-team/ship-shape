@@ -16,6 +16,40 @@ import re
 from pathlib import Path
 from typing import Any
 
+# Centralized sensitive directory lists (used across CLI and validation)
+SENSITIVE_DIRS = ["/etc", "/sys", "/proc", "/usr", "/bin", "/sbin", "/private/etc"]
+VAR_SENSITIVE_SUBDIRS = [
+    "/var/log",
+    "/var/root",
+    "/private/var/log",
+    "/private/var/root",
+]
+
+
+def _is_path_in_directory(path: Path, directory: Path) -> bool:
+    """Check if path is within directory (proper boundary checking).
+
+    Uses is_relative_to() for Python 3.9+ which handles edge cases
+    like /var/log-backup vs /var/log correctly.
+
+    Args:
+        path: Path to check (should be resolved)
+        directory: Directory to check against (will be resolved)
+
+    Returns:
+        True if path is within directory, False otherwise
+
+    Examples:
+        >>> _is_path_in_directory(Path("/var/log/app.log"), Path("/var/log"))
+        True
+        >>> _is_path_in_directory(Path("/var/log-backup/app.log"), Path("/var/log"))
+        False
+    """
+    try:
+        return path.is_relative_to(directory.resolve())
+    except (ValueError, OSError):
+        return False
+
 
 def validate_path(
     path: str | Path,
@@ -59,7 +93,7 @@ def validate_path(
     if must_exist and not resolved_path.exists():
         raise ValueError(f"Path does not exist: {resolved_path}")
 
-    # Check base_dir constraint FIRST (takes precedence over sensitive dirs)
+    # Check if path is within base directory (if specified)
     if base_dir is not None:
         base_resolved = Path(base_dir).resolve()
         try:
@@ -68,23 +102,23 @@ def validate_path(
             raise ValueError(
                 f"Path traversal detected: {resolved_path} is outside {base_resolved}"
             )
-        # If base_dir check passed, path is explicitly allowed - skip sensitive dir check
-        return resolved_path
 
     # Block sensitive system directories (unless explicitly allowed)
     if not allow_system_dirs:
-        sensitive_dirs = [
-            "/etc",
-            "/sys",
-            "/proc",
-            "/var",
-            "/usr",
-            "/bin",
-            "/sbin",
-            "/private/etc",  # macOS
-            "/private/var",  # macOS
-        ]
-        if any(str(resolved_path).startswith(p) for p in sensitive_dirs):
+        # Check if path is within any sensitive directory (proper boundary checking)
+        is_sensitive = any(
+            _is_path_in_directory(resolved_path, Path(p)) for p in SENSITIVE_DIRS
+        )
+
+        # Special handling for /var subdirectories (macOS)
+        # Only block specific subdirectories, not temp folders
+        if not is_sensitive:
+            is_sensitive = any(
+                _is_path_in_directory(resolved_path, Path(p))
+                for p in VAR_SENSITIVE_SUBDIRS
+            )
+
+        if is_sensitive:
             raise ValueError(
                 f"Cannot be in sensitive system directory: {resolved_path}"
             )

@@ -12,6 +12,7 @@ except ImportError:
     # Python 3.7 compatibility
     from importlib_metadata import version as get_version
 
+from pydantic import ValidationError
 
 from ..assessors import create_all_assessors
 from ..models.config import Config
@@ -19,10 +20,16 @@ from ..reporters.html import HTMLReporter
 from ..reporters.markdown import MarkdownReporter
 from ..services.research_loader import ResearchLoader
 from ..services.scanner import Scanner
+from ..utils.security import (
+    SENSITIVE_DIRS,
+    VAR_SENSITIVE_SUBDIRS,
+    _is_path_in_directory,
+)
 from ..utils.subprocess_utils import safe_subprocess_run
 
 # Lightweight commands - imported immediately
 from .align import align
+from .benchmark import benchmark
 from .bootstrap import bootstrap
 from .demo import demo
 from .repomix import repomix_generate
@@ -88,7 +95,6 @@ class LazyGroup(click.Group):
     cls=LazyGroup,
     lazy_subcommands={
         "assess-batch": ("assess_batch", "assess_batch"),
-        "eval-harness": ("eval_harness", "eval_harness"),
         "experiment": ("experiment", "experiment"),
         "extract-skills": ("extract_skills", "extract_skills"),
         "learn": ("learn", "learn"),
@@ -152,25 +158,50 @@ def cli(ctx, version):
     multiple=True,
     help="Attribute ID(s) to exclude (can be specified multiple times)",
 )
-def assess(repository, verbose, output_dir, config, exclude):
+def assess(
+    repository,
+    verbose,
+    output_dir,
+    config,
+    exclude,
+):
     """Assess a repository against agent-ready criteria.
 
     REPOSITORY: Path to git repository (default: current directory)
     """
-    run_assessment(repository, verbose, output_dir, config, exclude)
+    run_assessment(
+        repository,
+        verbose,
+        output_dir,
+        config,
+        exclude,
+    )
 
 
-def run_assessment(repository_path, verbose, output_dir, config_path, exclude=None):
+def run_assessment(
+    repository_path,
+    verbose,
+    output_dir,
+    config_path,
+    exclude=None,
+):
     """Execute repository assessment."""
-    try:
-        repo_path = Path(repository_path).resolve()
-    except (OSError, PermissionError):
-        # If resolve fails (e.g., permission denied), use absolute path
-        repo_path = Path(repository_path).absolute()
+    repo_path = Path(repository_path).resolve()
 
     # Security: Warn when scanning sensitive directories
-    sensitive_dirs = ["/etc", "/sys", "/proc", "/.ssh", "/var"]
-    if any(str(repo_path).startswith(p) for p in sensitive_dirs):
+    # Use centralized constants and proper boundary checking
+    is_sensitive = any(
+        _is_path_in_directory(repo_path, Path(p)) for p in SENSITIVE_DIRS
+    )
+
+    # Special handling for /var subdirectories (macOS)
+    # Only warn for specific subdirectories, not temp folders
+    if not is_sensitive:
+        is_sensitive = any(
+            _is_path_in_directory(repo_path, Path(p)) for p in VAR_SENSITIVE_SUBDIRS
+        )
+
+    if is_sensitive:
         click.confirm(
             f"⚠️  Warning: Scanning sensitive directory {repo_path}. Continue?",
             abort=True,
@@ -200,10 +231,10 @@ def run_assessment(repository_path, verbose, output_dir, config_path, exclude=No
                 abort=True,
             )
     except click.Abort:
-        # Re-raise Abort to properly exit when user declines
+        # User declined to continue - re-raise to abort
         raise
     except Exception:
-        # If we can't count files quickly, just continue
+        # If we can't count files quickly (timeout, permission error, etc.), just continue
         pass
 
     if verbose:
@@ -214,6 +245,8 @@ def run_assessment(repository_path, verbose, output_dir, config_path, exclude=No
     config = None
     if config_path:
         config = load_config(Path(config_path))
+    else:
+        config = Config.load_default()
 
     # Set output directory
     if output_dir:
@@ -313,11 +346,54 @@ def run_assessment(repository_path, verbose, output_dir, config_path, exclude=No
     click.echo(
         f"  Score: {assessment.overall_score:.1f}/100 ({assessment.certification_level})"
     )
-    click.echo(
-        f"  Assessed: {assessment.attributes_assessed}/{assessment.attributes_total}"
-    )
+    click.echo(f"  Assessed: {assessment.attributes_assessed}")
     click.echo(f"  Skipped: {assessment.attributes_not_assessed}")
+    click.echo(f"  Total: {assessment.attributes_total}")
     click.echo(f"  Duration: {assessment.duration_seconds:.1f}s")
+
+    # Add assessment results table
+    click.echo("\nAssessment Results:")
+    click.echo("-" * 100)
+    click.echo(f"{'Test Name':<35} {'Test Result':<14} {'Notes':<30}")
+    click.echo("-" * 100)
+
+    for finding in sorted(assessment.findings, key=lambda f: f.attribute.id):
+        # Status emoji
+        status_emoji = (
+            "✅"
+            if finding.status == "pass"
+            else "❌" if finding.status == "fail" else "⏭️"
+        )
+
+        # Test Result column: emoji + status
+        test_result = f"{status_emoji} {finding.status.upper()}"
+
+        # Notes column: score for PASS, reason for FAIL/SKIP
+        if finding.status == "pass":
+            notes = f"{finding.score:.0f}/100"
+        elif finding.status == "fail":
+            # Show measured value vs threshold, or first evidence
+            if finding.measured_value and finding.threshold:
+                notes = f"{finding.measured_value} (need: {finding.threshold})"
+            elif finding.evidence:
+                notes = finding.evidence[0]
+            else:
+                notes = f"{finding.score:.0f}/100"
+        elif finding.status in ("not_applicable", "skipped"):
+            # Show reason for skip
+            notes = finding.evidence[0] if finding.evidence else "Not applicable"
+        else:
+            # Error or unknown status
+            notes = finding.error_message or "Error"
+
+        # Truncate long notes to fit in column
+        if len(notes) > 50:
+            notes = notes[:47] + "..."
+
+        click.echo(f"{finding.attribute.id:<35} {test_result:<14} {notes:<30}")
+
+    click.echo("-" * 100)
+
     click.echo("\nReports generated:")
     click.echo(f"  JSON: {json_file}")
     click.echo(f"  HTML: {html_file}")
@@ -346,11 +422,72 @@ def load_config(config_path: Path) -> Config:
     """
     import yaml
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
 
-    # Config.from_yaml_dict handles all validation and raises ValueError on errors
-    return Config.from_yaml_dict(data)
+        # Validate that data is a dictionary
+        if not isinstance(data, dict):
+            raise ValueError("Config must be a dict")
+
+        # Pydantic handles all validation automatically
+        return Config.from_yaml_dict(data)
+    except ValidationError as e:
+        # Convert Pydantic validation errors to ValueError with user-friendly messages
+        # This allows callers (including tests) to catch and handle validation errors
+        errors = e.errors()
+
+        # Check for specific error types and provide user-friendly messages
+        if errors:
+            first_error = errors[0]
+            error_type = first_error.get("type", "")
+            field = first_error.get("loc", [])
+            field_name = field[0] if field else "unknown"
+
+            # Map Pydantic error types to user-friendly messages
+            if error_type == "extra_forbidden":
+                unknown_keys = [
+                    err.get("loc", [""])[0]
+                    for err in errors
+                    if err.get("type") == "extra_forbidden"
+                ]
+                raise ValueError(f"Unknown config keys: {', '.join(unknown_keys)}")
+            elif field_name == "weights" and error_type == "dict_type":
+                raise ValueError("'weights' must be a dict")
+            elif field_name == "weights" and (
+                "float_parsing" in error_type or "value_error" in error_type
+            ):
+                raise ValueError("'weights' values must be positive numbers")
+            elif field_name == "excluded_attributes" and error_type == "list_type":
+                raise ValueError("'excluded_attributes' must be a list")
+            elif field_name == "output_dir":
+                # Check if it's a sensitive directory validation error
+                # Pydantic wraps ValueError from validators - extract the message
+                error_msg = first_error.get("msg", "")
+                ctx = first_error.get("ctx", {})
+
+                # Check if error message contains "sensitive"
+                if "sensitive" in str(error_msg).lower():
+                    # Strip "Value error, " prefix that Pydantic adds
+                    msg = str(error_msg).replace("Value error, ", "")
+                    raise ValueError(msg)
+
+                # Check if error is in context
+                if "error" in ctx:
+                    ctx_error = str(ctx.get("error", ""))
+                    if "sensitive" in ctx_error.lower():
+                        raise ValueError(ctx_error)
+
+                # For other output_dir errors, raise generic message
+                raise ValueError(f"Invalid output_dir: {error_msg}")
+            elif field_name == "report_theme":
+                raise ValueError("'report_theme' must be str")
+            else:
+                # Generic error message for other validation failures
+                field_path = " → ".join(str(x) for x in field)
+                raise ValueError(
+                    f"Validation failed for '{field_path}': {first_error.get('msg', 'Invalid value')}"
+                )
 
 
 @cli.command()
@@ -405,6 +542,7 @@ def generate_config():
 
 # Register lightweight commands (heavy commands loaded lazily via LazyGroup)
 cli.add_command(align)
+cli.add_command(benchmark)
 cli.add_command(bootstrap)
 cli.add_command(demo)
 cli.add_command(migrate_report)

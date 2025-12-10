@@ -1,194 +1,268 @@
-"""Terminal-Bench integration for eval harness.
+"""
+Terminal-Bench runner with Harbor framework integration.
 
-This module provides both mocked (for testing workflow) and real
-(future Harbor framework) Terminal-Bench integration.
+This module provides functionality to execute real Terminal-Bench evaluations
+via the Harbor framework subprocess interface.
 """
 
-import hashlib
-import random
-from datetime import datetime
+import json
+import logging
+import os
+import shlex
+import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
-import git
+from agentready.services.eval_harness.harbor_config import HarborConfig
 
-from ...models.eval_harness import TbenchResult
+logger = logging.getLogger(__name__)
+
+# Constants for Harbor subprocess configuration
+DEFAULT_TIMEOUT = 3600  # 1 hour timeout per benchmark
+DEFAULT_N_CONCURRENT = 1  # Sequential execution (parallelism managed externally)
 
 
-class TbenchRunner:
-    """Interface to Terminal-Bench benchmark.
+@dataclass
+class TbenchResult:
+    """
+    Result from a Terminal-Bench evaluation.
 
-    Supports both mocked results (for workflow validation) and real
-    Terminal-Bench integration via Harbor framework (future).
+    Attributes:
+        score: Benchmark accuracy score (0.0 to 1.0)
+        task_solved: Whether any tasks were successfully resolved
+        is_mocked: True for mocked results, False for real Harbor runs
+        resolved_trials: Number of successfully completed tasks
+        unresolved_trials: Number of failed tasks
+        pass_at_1: Single-attempt success rate
+        pass_at_3: Success rate within 3 attempts
+        trajectory_path: Path to agent trajectory.json file (if available)
     """
 
-    def __init__(self, mock: bool = True):
-        """Initialize runner.
+    score: float
+    task_solved: bool
+    is_mocked: bool
+    resolved_trials: int = 0
+    unresolved_trials: int = 0
+    pass_at_1: float = 0.0
+    pass_at_3: float = 0.0
+    trajectory_path: Path | None = None
 
-        Args:
-            mock: If True, generate fake but realistic scores.
-                  If False, use real Terminal-Bench via Harbor (future).
-        """
-        self.mock = mock
+    def __post_init__(self):
+        """Validate score ranges and trial counts"""
+        # Validate score range [0.0, 1.0]
+        if not (0.0 <= self.score <= 1.0):
+            raise ValueError(f"Score must be 0.0-1.0, got {self.score}")
 
-    def run_benchmark(self, repo_path: Path) -> TbenchResult:
-        """Run Terminal-Bench on repository.
+        # Validate pass rates [0.0, 1.0]
+        if not (0.0 <= self.pass_at_1 <= 1.0):
+            raise ValueError(f"pass_at_1 must be 0.0-1.0, got {self.pass_at_1}")
+        if not (0.0 <= self.pass_at_3 <= 1.0):
+            raise ValueError(f"pass_at_3 must be 0.0-1.0, got {self.pass_at_3}")
 
-        Args:
-            repo_path: Path to git repository to evaluate
+        # Validate non-negative trial counts
+        if self.resolved_trials < 0 or self.unresolved_trials < 0:
+            raise ValueError("Trial counts cannot be negative")
 
-        Returns:
-            TbenchResult with scores and metrics
 
-        Raises:
-            ValueError: If repo_path is not a git repository
-            NotImplementedError: If mock=False (real tbench not yet implemented)
-        """
-        # Validate repository
-        if not (repo_path / ".git").exists():
-            raise ValueError(f"Not a git repository: {repo_path}")
+def _real_tbench_result(repo_path: Path, config: HarborConfig) -> TbenchResult:
+    """
+    Execute real Terminal-Bench evaluation via Harbor framework.
 
-        if self.mock:
-            return self._mock_tbench_result(repo_path)
-        else:
-            # Future: Real Harbor framework integration
-            raise NotImplementedError(
-                "Real Terminal-Bench integration not yet implemented. "
-                "Use mock=True for workflow validation."
+    Args:
+        repo_path: Path to repository being evaluated
+        config: HarborConfig with Harbor subprocess parameters
+
+    Returns:
+        TbenchResult with real benchmark metrics
+
+    Raises:
+        RuntimeError: If Harbor subprocess times out or fails
+        ValueError: If results path validation fails (path traversal)
+    """
+
+    # 2. Build harbor run command
+    if config.smoketest:
+        # SMOKETEST MODE: Use --path to point directly to downloaded task
+        # Task path is dynamically discovered by preflight check
+        if not config.task_path:
+            raise RuntimeError(
+                "Smoketest mode requires task_path to be set. "
+                "Ensure preflight checks are enabled."
             )
+        cmd = [
+            "harbor",
+            "run",
+            "--path",
+            str(config.task_path),
+            "--agent",
+            config.agent,
+            "--model",
+            config.model,
+            "--jobs-dir",
+            str(config.jobs_dir),
+            "--n-concurrent",
+            str(config.n_concurrent),
+            "--quiet",  # Reduce output noise
+        ]
+    else:
+        # Full benchmark: use dataset reference
+        cmd = [
+            "harbor",
+            "run",
+            "--dataset",
+            "terminal-bench@2.0",
+            "--agent",
+            config.agent,
+            "--model",
+            config.model,
+            "--jobs-dir",
+            str(config.jobs_dir),
+            "--n-concurrent",
+            str(config.n_concurrent),
+        ]
 
-    def _mock_tbench_result(self, repo_path: Path) -> TbenchResult:
-        """Generate realistic fake Terminal-Bench scores.
+    # 3. Prepare environment variables
+    # Pass through current environment but ensure API key is set
+    # Harbor's claude-code agent has MiniMax API hardcoded - override it
+    clean_env = os.environ.copy()
+    clean_env["ANTHROPIC_API_KEY"] = config.api_key
+    clean_env["ANTHROPIC_AUTH_TOKEN"] = config.api_key  # Harbor uses this
+    clean_env["ANTHROPIC_BASE_URL"] = "https://api.anthropic.com"  # Override MiniMax
+    clean_env["ANTHROPIC_API_BASE"] = "https://api.anthropic.com"  # Alternative var
+    # Clear MiniMax settings if present
+    clean_env.pop("MINIMAX_API_KEY", None)
 
-        Uses deterministic randomness seeded from repository commit hash
-        for reproducible results. Incorporates repository characteristics
-        (lines of code, languages) to make scores meaningful.
+    # Print Harbor command for debugging and manual execution
+    shell_cmd = " ".join(shlex.quote(arg) for arg in cmd)
 
-        Args:
-            repo_path: Repository to generate score for
+    # Prepare environment variable strings (truncate API key for security in display)
+    env_vars_display = [
+        f"ANTHROPIC_API_KEY={config.api_key[:20]}...",  # Truncated for display
+        f"ANTHROPIC_AUTH_TOKEN={config.api_key[:20]}...",
+        f"ANTHROPIC_BASE_URL={clean_env['ANTHROPIC_BASE_URL']}",
+        f"ANTHROPIC_API_BASE={clean_env['ANTHROPIC_API_BASE']}",
+    ]
 
-        Returns:
-            Mocked TbenchResult with realistic scores
-        """
-        # Get repository metadata
-        repo = git.Repo(repo_path)
-        commit_hash = repo.head.commit.hexsha
+    # Full command for copy/paste (use $ANTHROPIC_API_KEY to avoid exposing key)
+    env_vars_copyable = [
+        "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN=$ANTHROPIC_API_KEY",
+        f"ANTHROPIC_BASE_URL={clean_env['ANTHROPIC_BASE_URL']}",
+        f"ANTHROPIC_API_BASE={clean_env['ANTHROPIC_API_BASE']}",
+    ]
+    full_cmd_copyable = " ".join(env_vars_copyable) + " " + shell_cmd
 
-        # Seed random generator from commit hash for determinism
-        seed = int(hashlib.sha256(commit_hash.encode()).hexdigest(), 16) % (2**32)
-        rng = random.Random(seed)
+    print(f"\n{'=' * 70}")
+    print("Harbor Command (Copy/Paste Ready)")
+    print(f"{'=' * 70}")
+    print(f"\n{full_cmd_copyable}\n")
+    print(f"{'=' * 70}")
+    print("Command Breakdown:")
+    print(f"{'=' * 70}")
+    print(f"\nCommand: {shell_cmd}\n")
+    print("Environment Variables:")
+    for var in env_vars_display:
+        print(f"  {var}")
+    print(f"\n{'=' * 70}\n")
 
-        # Get repository characteristics
-        total_lines = self._count_lines(repo_path)
-        languages = self._detect_languages_simple(repo_path)
+    # Log full details
+    logger.info(f"Executing Harbor command: {shell_cmd}")
+    logger.info(f"Environment: {' '.join(env_vars_display)}")
 
-        # Base score depends on repository size and structure
-        # Larger, more organized repos tend to score higher
-        base_score = 50.0
-
-        # Adjust for repository size (more lines = slightly better)
-        if total_lines > 10000:
-            base_score += 10.0
-        elif total_lines > 5000:
-            base_score += 5.0
-        elif total_lines > 1000:
-            base_score += 2.0
-
-        # Adjust for language diversity (more languages = slightly better agent performance)
-        base_score += min(len(languages) * 2.0, 10.0)
-
-        # Add random variance (±10 points)
-        variance = rng.uniform(-10.0, 10.0)
-        score = max(0.0, min(100.0, base_score + variance))
-
-        # Generate correlated metrics
-        completion_rate = score + rng.uniform(-5.0, 5.0)
-        completion_rate = max(0.0, min(100.0, completion_rate))
-
-        pytest_pass_rate = score + rng.uniform(-10.0, 10.0)
-        pytest_pass_rate = max(0.0, min(100.0, pytest_pass_rate))
-
-        # Latency inversely correlated with score (better repos = faster)
-        base_latency = 5000.0  # 5 seconds
-        latency_ms = base_latency * (1.0 - score / 200.0) + rng.uniform(-500.0, 500.0)
-        latency_ms = max(1000.0, latency_ms)  # At least 1 second
-
-        return TbenchResult(
-            score=round(score, 2),
-            completion_rate=round(completion_rate, 2),
-            pytest_pass_rate=round(pytest_pass_rate, 2),
-            latency_ms=round(latency_ms, 2),
-            timestamp=datetime.now(),
-            is_mocked=True,
+    # 4. Execute subprocess with timeout
+    try:
+        subprocess.run(
+            cmd,
+            env=clean_env,
+            timeout=config.timeout,
+            check=True,
+            capture_output=True,
+            text=True,
         )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"Benchmark timed out after {config.timeout}s")
+    except subprocess.CalledProcessError as e:
+        # Include stderr in error message for debugging
+        error_msg = f"Harbor command failed: {e}"
+        if e.stderr:
+            error_msg += f"\nStderr: {e.stderr}"
+        raise RuntimeError(error_msg)
 
-    def _count_lines(self, repo_path: Path) -> int:
-        """Count total lines of code in repository.
+    # 5. Find timestamped results directory created by Harbor
+    # Harbor creates: jobs_dir/YYYY-MM-DD__HH-MM-SS/result.json
+    result_dirs = sorted(config.jobs_dir.glob("20*"))  # Find timestamped dirs
+    if not result_dirs:
+        raise RuntimeError(f"No Harbor results directory found in {config.jobs_dir}")
 
-        Args:
-            repo_path: Repository path
+    latest_dir = result_dirs[-1]  # Use most recent
+    results_path = latest_dir / "result.json"  # Note: singular "result.json"
 
-        Returns:
-            Total lines (approximate, using git ls-files)
-        """
-        try:
-            repo = git.Repo(repo_path)
-            files = repo.git.ls_files().splitlines()
+    # SECURITY: Path validation (FR-005)
+    if not results_path.is_relative_to(config.jobs_dir):
+        raise ValueError(f"Invalid results path: {results_path}")
 
-            total_lines = 0
-            for file_path in files[:100]:  # Sample first 100 files for speed
-                full_path = repo_path / file_path
-                if full_path.is_file():
-                    try:
-                        with open(full_path, "r", encoding="utf-8") as f:
-                            total_lines += sum(1 for _ in f)
-                    except (UnicodeDecodeError, PermissionError):
-                        # Skip binary files or permission errors
-                        continue
+    if not results_path.exists():
+        raise FileNotFoundError(f"Harbor results file not found: {results_path}")
 
-            # Extrapolate if we sampled
-            if len(files) > 100:
-                total_lines = int(total_lines * (len(files) / 100))
+    # Find trajectory file: jobs_dir/timestamp/task_name__hash/agent/trajectory.json
+    trajectory_path = None
+    task_dirs = list(latest_dir.glob("*"))
+    for task_dir in task_dirs:
+        if task_dir.is_dir() and task_dir.name != "verifier":
+            candidate = task_dir / "agent" / "trajectory.json"
+            if candidate.exists():
+                trajectory_path = candidate
+                break
 
-            return total_lines
+    return parse_harbor_results(results_path, trajectory_path)
 
-        except Exception:
-            # Fallback if git operations fail
-            return 1000
 
-    def _detect_languages_simple(self, repo_path: Path) -> list[str]:
-        """Detect languages in repository (simplified version).
+def parse_harbor_results(
+    results_path: Path, trajectory_path: Path | None = None
+) -> TbenchResult:
+    """
+    Parse Harbor framework JSON output.
 
-        Args:
-            repo_path: Repository path
+    Args:
+        results_path: Path to Harbor result.json file
+        trajectory_path: Optional path to agent trajectory.json file
 
-        Returns:
-            List of detected languages (e.g., ["Python", "JavaScript"])
-        """
-        extensions = {
-            ".py": "Python",
-            ".js": "JavaScript",
-            ".ts": "TypeScript",
-            ".java": "Java",
-            ".go": "Go",
-            ".rs": "Rust",
-            ".rb": "Ruby",
-            ".php": "PHP",
-            ".c": "C",
-            ".cpp": "C++",
-            ".cs": "C#",
-        }
+    Returns:
+        TbenchResult with metrics from Harbor output
 
-        try:
-            repo = git.Repo(repo_path)
-            files = repo.git.ls_files().splitlines()
+    Raises:
+        json.JSONDecodeError: If result.json is invalid JSON
+        KeyError: If required fields missing from results
+    """
+    with open(results_path) as f:
+        data = json.load(f)
 
-            detected = set()
-            for file_path in files:
-                suffix = Path(file_path).suffix
-                if suffix in extensions:
-                    detected.add(extensions[suffix])
+    # Harbor structure: stats.evals.<eval_name>.{n_trials, n_errors, metrics}
+    stats = data["stats"]
+    evals = stats["evals"]
+    n_total_trials = data["n_total_trials"]
 
-            return list(detected)
+    # Get the first (and typically only) eval result
+    eval_key = list(evals.keys())[0]
+    eval_data = evals[eval_key]
 
-        except Exception:
-            return ["Unknown"]
+    mean_score = eval_data["metrics"][0]["mean"]
+
+    # In Terminal-Bench: mean_score represents fraction of tasks solved
+    # reward_stats shows which tasks got reward > 0
+    # Count tasks with reward > 0 as resolved
+    reward_stats = eval_data.get("reward_stats", {}).get("reward", {})
+    n_solved = sum(
+        len(tasks) for reward, tasks in reward_stats.items() if float(reward) > 0
+    )
+
+    return TbenchResult(
+        score=mean_score,
+        task_solved=n_solved > 0,
+        is_mocked=False,
+        resolved_trials=n_solved,
+        unresolved_trials=n_total_trials - n_solved,
+        pass_at_1=mean_score,  # Mean score is pass rate
+        pass_at_3=0.0,  # Terminal-Bench doesn't provide pass@3
+        trajectory_path=trajectory_path,
+    )

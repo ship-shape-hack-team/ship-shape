@@ -192,133 +192,6 @@ class MyAssessor(BaseAssessor):
 
 ---
 
-## Terminal-Bench Eval Harness
-
-**Purpose**: Empirically measure the impact of AgentReady assessors on Terminal-Bench performance through systematic A/B testing.
-
-### Overview
-
-The eval harness tests each assessor independently to measure its specific impact on agentic development benchmarks. This provides evidence-based validation of AgentReady's recommendations.
-
-**Architecture**:
-1. **Baseline**: Run Terminal-Bench on unmodified repository (5 iterations)
-2. **Per-Assessor Test**: Apply single assessor remediation → measure delta
-3. **Aggregate**: Rank assessors by impact, calculate tier statistics
-4. **Dashboard**: Generate interactive visualization for GitHub Pages
-
-**Components**:
-- `src/agentready/services/eval_harness/` - Core services (TbenchRunner, BaselineEstablisher, AssessorTester, ResultsAggregator, DashboardGenerator)
-- `src/agentready/models/eval_harness.py` - Data models (TbenchResult, BaselineMetrics, AssessorImpact, EvalSummary)
-- `src/agentready/cli/eval_harness.py` - CLI commands (baseline, test-assessor, run-tier, summarize, dashboard)
-- `docs/tbench.md` - Interactive dashboard with Chart.js
-- `docs/tbench/methodology.md` - Detailed statistical methodology
-
-### Running Evaluations
-
-```bash
-# 1. Establish baseline (run Terminal-Bench 5 times on unmodified repo)
-agentready eval-harness baseline --repo . --iterations 5
-
-# 2. Test single assessor
-agentready eval-harness test-assessor \
-  --assessor-id claude_md_file \
-  --iterations 5
-
-# 3. Test all Tier 1 assessors
-agentready eval-harness run-tier --tier 1 --iterations 5
-
-# 4. Aggregate results (rank by impact, calculate statistics)
-agentready eval-harness summarize --verbose
-
-# 5. Generate dashboard data files for GitHub Pages
-agentready eval-harness dashboard --verbose
-```
-
-### File Structure
-
-```
-.agentready/eval_harness/          # Results storage (gitignored)
-├── baseline/
-│   ├── run_001.json              # Individual tbench runs
-│   ├── run_002.json
-│   ├── ...
-│   └── summary.json              # BaselineMetrics
-├── assessors/
-│   ├── claude_md_file/
-│   │   ├── finding.json          # Assessment result
-│   │   ├── fixes_applied.log     # Remediation log
-│   │   ├── run_001.json          # Post-remediation runs
-│   │   ├── ...
-│   │   └── impact.json           # AssessorImpact metrics
-│   └── ...
-└── summary.json                   # EvalSummary (ranked impacts)
-
-docs/_data/tbench/                 # Dashboard data (committed)
-├── summary.json
-├── ranked_assessors.json
-├── tier_impacts.json
-├── baseline.json
-└── stats.json
-```
-
-### Statistical Methods
-
-**Significance Criteria** (both required):
-- **P-value < 0.05**: 95% confidence (two-sample t-test)
-- **|Cohen's d| > 0.2**: Meaningful effect size
-
-**Effect Size Interpretation**:
-- **0.2 ≤ |d| < 0.5**: Small effect
-- **0.5 ≤ |d| < 0.8**: Medium effect
-- **|d| ≥ 0.8**: Large effect
-
-### Current Status
-
-**Phase 1 (MVP)**: Mocked Terminal-Bench integration ✅
-- All core services implemented and tested
-- CLI commands functional
-- Dashboard with Chart.js visualizations
-- 6 CLI unit tests + 5 integration tests passing
-
-**Phase 2 (Planned)**: Real Terminal-Bench integration
-- Harbor framework client
-- Actual benchmark submissions
-- Leaderboard integration
-
-### Testing
-
-```bash
-# Run eval harness tests
-pytest tests/unit/test_eval_harness*.py -v
-pytest tests/integration/test_eval_harness_e2e.py -v
-```
-
-**Test Coverage**:
-- Models: 90-95%
-- Services: 85-90%
-- CLI: 100% (help commands validated)
-- Integration: End-to-end workflow tested
-
-### Troubleshooting
-
-**Issue**: `FileNotFoundError: Baseline directory not found`
-**Solution**: Run `agentready eval-harness baseline` first
-
-**Issue**: `No assessor results found`
-**Solution**: Run `agentready eval-harness test-assessor` or `run-tier` first
-
-**Issue**: Mocked scores seem unrealistic
-**Solution**: This is expected in Phase 1 (mocked mode) - real integration coming in Phase 2
-
-### Documentation
-
-- **User Guide**: `docs/eval-harness-guide.md` - Step-by-step tutorials
-- **Methodology**: `docs/tbench/methodology.md` - Statistical methods explained
-- **Dashboard**: `docs/tbench.md` - Interactive results visualization
-- **Plan**: `.claude/plans/quirky-squishing-plum.md` - Implementation roadmap
-
----
-
 ## Project Structure
 
 ```
@@ -352,6 +225,34 @@ agentready/
 - **Black** - Code formatter
 - **isort** - Import sorter
 - **Ruff** - Fast Python linter
+- **Harbor** - Evaluation framework (optional, for benchmarks)
+
+---
+
+## Preflight Checks
+
+AgentReady validates dependencies before running benchmarks:
+
+- **Harbor CLI**: Checked automatically before Terminal-Bench runs
+- **Interactive installation**: Prompts user with `uv tool install harbor` (or `pip install harbor` fallback)
+- **Opt-out**: Use `--skip-preflight` flag to bypass checks for advanced users
+- **Package manager fallback**: Prefers `uv`, falls back to `pip` if `uv` not available
+- **Security**: Uses `safe_subprocess_run()` with 5-minute timeout
+
+**Implementation**:
+- Module: `src/agentready/utils/preflight.py`
+- Tests: `tests/unit/utils/test_preflight.py` (100% coverage)
+- Integration: `src/agentready/cli/benchmark.py`
+
+**Usage Examples**:
+
+```bash
+# Normal usage (preflight check runs automatically)
+agentready benchmark --subset smoketest
+
+# Skip preflight (advanced users)
+agentready benchmark --subset smoketest --skip-preflight
+```
 
 ---
 
@@ -520,3 +421,11 @@ Use the @agent-github-pages-docs to [action] based on:
 **Last Updated**: 2025-12-10 by Jeremy Eder
 **AgentReady Version**: 2.16.0
 **Self-Assessment**: 80.0/100 (Gold) ✨
+
+## Active Technologies
+- Python 3.11+ (AgentReady standard, aligns with "N and N-1" policy) (002-harbor-real-integration)
+- File-based (Harbor outputs to `--jobs-dir`, JSON results parsed from filesystem) (002-harbor-real-integration)
+
+## Recent Changes
+- 002-harbor-real-integration: Added Python 3.11+ (AgentReady standard, aligns with "N and N-1" policy)
+- Build a generic interfaces first, then build consumers of that interface. This approach forces our interfaces to be more generic, pluggable and simple to extend.
