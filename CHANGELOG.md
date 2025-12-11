@@ -1,3 +1,10 @@
+# [2.20.0](https://github.com/ambient-code/agentready/compare/v2.19.1...v2.20.0) (2025-12-11)
+
+
+### Features
+
+* convert AgentReady assessment to on-demand workflow ([#213](https://github.com/ambient-code/agentready/issues/213)) ([b5a1ce0](https://github.com/ambient-code/agentready/commit/b5a1ce03f5364351833733f034fcc2f7bf1bd49f)), closes [#191](https://github.com/ambient-code/agentready/issues/191)
+
 ## [2.19.1](https://github.com/ambient-code/agentready/compare/v2.19.0...v2.19.1) (2025-12-10)
 
 
