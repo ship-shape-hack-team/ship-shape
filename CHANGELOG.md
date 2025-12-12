@@ -1,3 +1,10 @@
+## [2.20.2](https://github.com/ambient-code/agentready/compare/v2.20.1...v2.20.2) (2025-12-12)
+
+
+### Bug Fixes
+
+* update --version flag to show correct version and research report date ([#221](https://github.com/ambient-code/agentready/issues/221)) ([5a85abb](https://github.com/ambient-code/agentready/commit/5a85abbb7ae2f9acbce6ae673672ca9851926297))
+
 ## [2.20.1](https://github.com/ambient-code/agentready/compare/v2.20.0...v2.20.1) (2025-12-12)
 
 
