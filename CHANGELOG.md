@@ -1,3 +1,10 @@
+## [2.20.1](https://github.com/ambient-code/agentready/compare/v2.20.0...v2.20.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* rename research report in data directory ([b8ddfdc](https://github.com/ambient-code/agentready/commit/b8ddfdc241b55ca42837bd144a9dd894c4d13fbb))
+
 # [2.10.0](https://github.com/jeremyeder/agentready/compare/v2.9.0...v2.10.0) (2025-12-12)
 
 
