@@ -1,3 +1,10 @@
+# [2.21.0](https://github.com/ambient-code/agentready/compare/v2.20.3...v2.21.0) (2025-12-15)
+
+
+### Features
+
+* consolidate GitHub Actions workflows by purpose ([#217](https://github.com/ambient-code/agentready/issues/217)) ([717ca6b](https://github.com/ambient-code/agentready/commit/717ca6be9bf630798bfbd7590abaa95ab43d4355)), closes [#221](https://github.com/ambient-code/agentready/issues/221)
+
 ## [2.20.3](https://github.com/ambient-code/agentready/compare/v2.20.2...v2.20.3) (2025-12-15)
 
 
