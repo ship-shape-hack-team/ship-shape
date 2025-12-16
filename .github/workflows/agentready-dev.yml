@@ -185,6 +185,14 @@ jobs:
           ref: ${{ steps.checkout-ref.outputs.ref || '' }}
           fetch-depth: 0
 
+      - name: Debug event context
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Issue number from step: ${{ steps.event-context.outputs.issue_number }}"
+          echo "Is PR: ${{ steps.event-context.outputs.is_pr }}"
+          echo "PR number: ${{ steps.event-context.outputs.pr_number }}"
+          echo "GitHub context issue: ${{ github.event.issue.number }}"
+
       - name: Claude Code Action
         id: claude-code
         uses: anthropics/claude-code-action@v1
