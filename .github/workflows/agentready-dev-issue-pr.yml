@@ -216,26 +216,27 @@ jobs:
             echo "branch_suggestion=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if analysis files exist
-        if: steps.issue-context.outputs.skip_pr_creation != 'true' && steps.extract-decision.outputs.decision != ''
-        id: check-analysis-files
+      - name: Verify analysis files exist
+        if: steps.issue-context.outputs.skip_pr_creation != 'true'
+        id: verify-analysis-files
         run: |
-          if [ -f .github/agentready-dev-logs/analysis-decision.txt ] && [ -f .github/agentready-dev-logs/analysis-reasoning.txt ]; then
-            echo "files_exist=true" >> $GITHUB_OUTPUT
-            echo "Analysis files found, proceeding with self-review"
-          else
-            echo "files_exist=false" >> $GITHUB_OUTPUT
-            echo "Warning: Analysis files not found. Decision: ${{ steps.extract-decision.outputs.decision }}" >&2
-            if [ ! -f .github/agentready-dev-logs/analysis-decision.txt ]; then
-              echo "Missing: analysis-decision.txt" >&2
-            fi
-            if [ ! -f .github/agentready-dev-logs/analysis-reasoning.txt ]; then
-              echo "Missing: analysis-reasoning.txt" >&2
-            fi
+          if [ ! -f .github/agentready-dev-logs/analysis-decision.txt ]; then
+            echo "ERROR: analysis-decision.txt not found. The 'Analyze issue and determine action' step failed to create required files." >&2
+            echo "This indicates Claude Code Action did not complete successfully." >&2
+            exit 1
           fi
+          
+          if [ ! -f .github/agentready-dev-logs/analysis-reasoning.txt ]; then
+            echo "ERROR: analysis-reasoning.txt not found. The 'Analyze issue and determine action' step failed to create required files." >&2
+            echo "This indicates Claude Code Action did not complete successfully." >&2
+            exit 1
+          fi
+          
+          echo "✅ Analysis files verified"
+          echo "files_exist=true" >> $GITHUB_OUTPUT
 
       - name: Self-review issue analysis
-        if: steps.issue-context.outputs.skip_pr_creation != 'true' && steps.extract-decision.outputs.decision != '' && steps.check-analysis-files.outputs.files_exist == 'true'
+        if: steps.issue-context.outputs.skip_pr_creation != 'true' && steps.extract-decision.outputs.decision != '' && steps.verify-analysis-files.outputs.files_exist == 'true'
         id: self-review-analysis
         uses: anthropics/claude-code-action@v1
         with:
@@ -265,11 +266,7 @@ jobs:
         if: steps.issue-context.outputs.skip_pr_creation != 'true' && steps.extract-decision.outputs.decision != ''
         id: check-review
         run: |
-          # If self-review step was skipped (files didn't exist), proceed anyway
-          if [ "${{ steps.check-analysis-files.outputs.files_exist }}" != "true" ]; then
-            echo "review_passed=true" >> $GITHUB_OUTPUT
-            echo "Self-review skipped (files not found), proceeding with extracted decision"
-          elif [ -f .github/agentready-dev-logs/analysis-review-passed.txt ]; then
+          if [ -f .github/agentready-dev-logs/analysis-review-passed.txt ]; then
             REVIEW_PASSED=$(cat .github/agentready-dev-logs/analysis-review-passed.txt | tr -d '\n' | grep -i "true" || echo "false")
             echo "review_passed=$REVIEW_PASSED" >> $GITHUB_OUTPUT
           else
