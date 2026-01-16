@@ -1,3 +1,10 @@
+## [2.22.3](https://github.com/ambient-code/agentready/compare/v2.22.2...v2.22.3) (2026-01-16)
+
+
+### Bug Fixes
+
+* prevent unauthorized message for non-command comments ([#262](https://github.com/ambient-code/agentready/issues/262)) ([84c6f69](https://github.com/ambient-code/agentready/commit/84c6f69f75f986825ecb0106aadb6a1bb3c8863b))
+
 ## [2.22.2](https://github.com/ambient-code/agentready/compare/v2.22.1...v2.22.2) (2026-01-15)
 
 
