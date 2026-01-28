@@ -82,14 +82,59 @@ class TestCoverageAssessor(BaseAssessor):
             )
 
     def _has_tests(self, repo_path: Path) -> bool:
-        """Check if repository has test files."""
+        """Check if repository has test files across multiple languages and test types."""
         test_patterns = [
+            # Python (unit, integration, e2e)
             "**/test_*.py",
             "**/*_test.py",
             "**/tests/**/*.py",
+            "**/test/**/*.py",
+            # JavaScript/TypeScript (unit, integration, e2e)
+            "**/*.test.js",
+            "**/*.test.ts",
+            "**/*.test.jsx",
+            "**/*.test.tsx",
+            "**/*.spec.js",
+            "**/*.spec.ts",
+            "**/*.spec.jsx",
+            "**/*.spec.tsx",
             "**/__tests__/**/*.js",
             "**/__tests__/**/*.ts",
-            "**/test/**/*.py",
+            "**/__tests__/**/*.jsx",
+            "**/__tests__/**/*.tsx",
+            # E2E/UI tests
+            "**/e2e/**/*.js",
+            "**/e2e/**/*.ts",
+            "**/cypress/**/*.js",
+            "**/cypress/**/*.ts",
+            "**/*.e2e.js",
+            "**/*.e2e.ts",
+            "**/playwright/**/*.ts",
+            "**/playwright/**/*.js",
+            # Go
+            "**/*_test.go",
+            # Java
+            "**/src/test/**/*Test.java",
+            "**/src/test/**/*Tests.java",
+            "**/test/**/*Test.java",
+            # Rust
+            "**/*_test.rs",
+            "**/tests/**/*.rs",
+            # Ruby
+            "**/*_spec.rb",
+            "**/spec/**/*.rb",
+            # C/C++
+            "**/test_*.c",
+            "**/test_*.cpp",
+            "**/tests/**/*.c",
+            "**/tests/**/*.cpp",
+            # PHP
+            "**/*Test.php",
+            "**/tests/**/*Test.php",
+            # C#
+            "**/*Test.cs",
+            "**/*Tests.cs",
+            "**/test/**/*.cs",
         ]
 
         for pattern in test_patterns:
@@ -144,33 +189,96 @@ class TestCoverageAssessor(BaseAssessor):
         return None
 
     def _estimate_from_test_ratio(self, repo_path: Path) -> Dict[str, Any]:
-        """Estimate coverage from test file to source file ratio."""
+        """Estimate coverage from test file to source file ratio across all languages and test types."""
         test_files = 0
         source_files = 0
+        test_files_by_type = {
+            'unit': 0,
+            'integration': 0,
+            'e2e': 0,
+        }
+        
+        # Multi-language source and test extensions
+        source_extensions = {
+            '.py', '.js', '.ts', '.jsx', '.tsx', '.go', '.java', '.rs', '.rb', 
+            '.c', '.cpp', '.h', '.hpp', '.cs', '.php', '.swift', '.kt'
+        }
+        
+        # Test file indicators by type
+        unit_test_indicators = ['test_', '_test.', '.test.', '.spec.', '__tests__', '/tests/', '/test/', '/spec/']
+        integration_indicators = ['integration', 'integ_test', 'test_integration']
+        e2e_indicators = ['e2e', 'cypress', 'playwright', 'selenium', 'end-to-end', 'e2e-tests']
 
         for root, dirs, files in os.walk(repo_path):
             # Skip common non-source directories
-            dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', '.venv', 'venv', '__pycache__']]
+            dirs[:] = [d for d in dirs if d not in [
+                '.git', 'node_modules', '.venv', 'venv', '__pycache__', 
+                'vendor', 'target', 'build', 'dist', '.gradle', 'bin', 'obj'
+            ]]
 
             for file in files:
-                if file.endswith(('.py', '.js', '.ts')):
-                    if 'test' in file.lower() or 'test' in root.lower():
+                file_ext = os.path.splitext(file)[1]
+                
+                if file_ext in source_extensions:
+                    file_lower = file.lower()
+                    root_lower = root.lower()
+                    
+                    # Determine test type
+                    is_e2e = any(indicator in file_lower or indicator in root_lower 
+                                for indicator in e2e_indicators)
+                    is_integration = any(indicator in file_lower or indicator in root_lower 
+                                       for indicator in integration_indicators)
+                    is_unit_test = any(indicator in file_lower or indicator in root_lower 
+                                     for indicator in unit_test_indicators)
+                    
+                    if is_e2e:
                         test_files += 1
+                        test_files_by_type['e2e'] += 1
+                    elif is_integration:
+                        test_files += 1
+                        test_files_by_type['integration'] += 1
+                    elif is_unit_test:
+                        test_files += 1
+                        test_files_by_type['unit'] += 1
                     else:
                         source_files += 1
 
         if source_files == 0:
-            return {"line_coverage": 0, "test_count": test_files}
+            return {
+                "line_coverage": 0, 
+                "test_count": test_files,
+                "unit_tests": test_files_by_type['unit'],
+                "integration_tests": test_files_by_type['integration'],
+                "e2e_tests": test_files_by_type['e2e'],
+            }
 
-        # Rough estimate: if you have 1 test file per 2 source files, assume ~50% coverage
-        ratio = test_files / source_files if source_files > 0 else 0
-        estimated_coverage = min(100, ratio * 50)
+        # Improved estimate accounting for all test types
+        # E2E tests count more (cover more code) than unit tests
+        weighted_test_count = (
+            test_files_by_type['unit'] * 1.0 +
+            test_files_by_type['integration'] * 1.5 +
+            test_files_by_type['e2e'] * 2.0
+        )
+        
+        ratio = weighted_test_count / source_files if source_files > 0 else 0
+        
+        # Better coverage estimation with weighted tests
+        if ratio >= 1.0:
+            estimated_coverage = min(100, 80 + (ratio - 1) * 20)
+        elif ratio >= 0.5:
+            estimated_coverage = 50 + (ratio - 0.5) * 60
+        else:
+            estimated_coverage = ratio * 100
 
         return {
             "line_coverage": estimated_coverage,
             "branch_coverage": 0,
             "function_coverage": 0,
             "test_count": test_files,
+            "unit_tests": test_files_by_type['unit'],
+            "integration_tests": test_files_by_type['integration'],
+            "e2e_tests": test_files_by_type['e2e'],
+            "source_count": source_files,
             "test_to_code_ratio": ratio,
         }
 
@@ -180,14 +288,22 @@ class TestCoverageAssessor(BaseAssessor):
             f"Line coverage: {metrics.get('line_coverage', 0):.1f}%",
         ]
 
-        if metrics.get("branch_coverage"):
-            parts.append(f"Branch coverage: {metrics['branch_coverage']:.1f}%")
-
         if metrics.get("test_count"):
-            parts.append(f"Test count: {metrics['test_count']}")
+            total = metrics['test_count']
+            unit = metrics.get('unit_tests', 0)
+            integration = metrics.get('integration_tests', 0)
+            e2e = metrics.get('e2e_tests', 0)
+            
+            if unit or integration or e2e:
+                parts.append(f"Tests: {total} total ({unit} unit, {integration} integration, {e2e} e2e)")
+            else:
+                parts.append(f"Test count: {total}")
+
+        if metrics.get("source_count"):
+            parts.append(f"Source files: {metrics['source_count']}")
 
         if metrics.get("test_to_code_ratio"):
-            parts.append(f"Test/code ratio: {metrics['test_to_code_ratio']:.2f}")
+            parts.append(f"Ratio: {metrics['test_to_code_ratio']:.2f}")
 
         return " | ".join(parts)
 
