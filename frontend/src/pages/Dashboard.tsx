@@ -39,11 +39,15 @@ export const Dashboard: React.FC = () => {
       });
 
       setRepositories(data.repositories || []);
+      
+      // If no repositories in database, show helpful message
+      if (data.repositories.length === 0) {
+        setError('No repositories assessed yet. Run: agentready assess-quality /path/to/repo');
+      }
     } catch (err) {
       console.error('Failed to load repositories:', err);
-      setError('Failed to load repositories. Make sure the API server is running.');
-      // Show mock data for demo purposes
-      setRepositories(getMockRepositories());
+      setError('API server not running. Start it with: uvicorn agentready.api.app:app --reload --port 8000');
+      setRepositories([]);
     } finally {
       setIsLoading(false);
     }
@@ -57,8 +61,12 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleRowClick = (repo: RepositorySummary) => {
-    // Navigate to detail page
-    navigate(`/repository/${encodeURIComponent(repo.repo_url)}`);
+    // Navigate to detail page using assessment ID
+    if (repo.latest_assessment_id) {
+      navigate(`/assessment/${repo.latest_assessment_id}`);
+    } else {
+      alert('No assessment found for this repository');
+    }
   };
 
   return (
@@ -75,12 +83,12 @@ export const Dashboard: React.FC = () => {
       <PageSection>
         {error && (
           <Alert
-            variant={AlertVariant.info}
-            title="Demo Mode"
+            variant={AlertVariant.warning}
+            title="Backend Not Connected"
             isInline
             style={{ marginBottom: '1rem' }}
           >
-            {error} Showing mock data for demonstration.
+            {error}
           </Alert>
         )}
 
@@ -100,22 +108,3 @@ export const Dashboard: React.FC = () => {
   );
 };
 
-// Mock data for demonstration when API is not available
-function getMockRepositories(): RepositorySummary[] {
-  return [
-    {
-      repo_url: 'https://github.com/kubeflow/model-registry',
-      name: 'kubeflow/model-registry',
-      primary_language: 'Go',
-      overall_score: 47.9,
-      last_assessed: new Date().toISOString(),
-    },
-    {
-      repo_url: 'file:///Users/ykrimerm/hackthon1/ship-shape',
-      name: 'ship-shape',
-      primary_language: 'Python',
-      overall_score: 86.3,
-      last_assessed: new Date().toISOString(),
-    },
-  ];
-}

@@ -45,24 +45,62 @@ async def get_assessment(
     assessment_id: str,
     include_results: bool = Query(True),
 ):
-    """Get assessment details.
+    """Get assessment details with assessor results.
 
     Args:
         assessment_id: Assessment UUID
         include_results: Include assessor results
 
     Returns:
-        Assessment details
+        Assessment details with assessor results
     """
-    store = AssessmentStore()
-
-    assessment_data = store.get(assessment_id)
-
-    if not assessment_data:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-
-    # Note: Would include assessor results if include_results=True
-    return assessment_data
+    from ...storage.connection import get_db_session
+    from sqlalchemy import text
+    import json
+    
+    try:
+        with get_db_session() as session:
+            # Get assessment
+            query = text("SELECT id, repo_url, overall_score, status, started_at, completed_at, metadata FROM assessments WHERE id = :id")
+            assessment_row = session.execute(query, {"id": assessment_id}).fetchone()
+            
+            if not assessment_row:
+                raise HTTPException(status_code=404, detail="Assessment not found")
+            
+            assessment_data = {
+                "id": assessment_row[0],
+                "repo_url": assessment_row[1],
+                "overall_score": assessment_row[2],
+                "status": assessment_row[3],
+                "started_at": assessment_row[4],
+                "completed_at": assessment_row[5],
+                "metadata": json.loads(assessment_row[6]) if assessment_row[6] else None,
+            }
+            
+            # Include assessor results if requested
+            if include_results:
+                results_query = text("SELECT id, assessor_name, score, metrics, status, executed_at FROM assessor_results WHERE assessment_id = :id")
+                results_rows = session.execute(results_query, {"id": assessment_id}).fetchall()
+                
+                assessor_results = []
+                for row in results_rows:
+                    assessor_results.append({
+                        "id": row[0],
+                        "assessor_name": row[1],
+                        "score": row[2],
+                        "metrics": json.loads(row[3]) if row[3] else {},
+                        "status": row[4],
+                        "executed_at": row[5],
+                    })
+                
+                assessment_data["assessor_results"] = assessor_results
+            
+            return assessment_data
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve assessment: {str(e)}")
 
 
 @router.get("/assessments/{assessment_id}/status")
@@ -123,22 +161,50 @@ async def get_repository_assessments(
         offset: Number to skip
 
     Returns:
-        Assessment history
+        Assessment history with IDs for fetching details
     """
     from urllib.parse import unquote
+    from ...storage.connection import get_db_session
+    from sqlalchemy import text
 
     repo_url = unquote(repo_url_encoded)
-    store = AssessmentStore()
-
-    assessments = store.list(
-        filters={"repo_url": repo_url},
-        limit=limit,
-        offset=offset,
-    )
-
-    total = store.count(filters={"repo_url": repo_url})
-
-    return {
-        "assessments": assessments,
-        "total": total,
-    }
+    
+    try:
+        with get_db_session() as session:
+            # Get assessments for this repo
+            query = text("""
+                SELECT id, repo_url, overall_score, status, started_at, completed_at
+                FROM assessments
+                WHERE repo_url = :repo_url
+                ORDER BY started_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+            
+            results = session.execute(query, {
+                "repo_url": repo_url,
+                "limit": limit,
+                "offset": offset
+            }).fetchall()
+            
+            # Count total
+            count_query = text("SELECT COUNT(*) FROM assessments WHERE repo_url = :repo_url")
+            total = session.execute(count_query, {"repo_url": repo_url}).fetchone()[0]
+            
+            assessments = [
+                {
+                    "id": row[0],
+                    "repo_url": row[1],
+                    "overall_score": row[2],
+                    "status": row[3],
+                    "started_at": row[4],
+                    "completed_at": row[5],
+                }
+                for row in results
+            ]
+            
+            return {
+                "assessments": assessments,
+                "total": total,
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve assessments: {str(e)}")

@@ -5,14 +5,14 @@ from typing import Dict, List, Optional
 
 from .assessment import Assessment
 from .assessor_result import AssessorResult
-from .repository import Repository
+from .repository_record import RepositoryRecord
 
 
 @dataclass
 class QualityProfile:
     """Comprehensive quality profile for a repository."""
 
-    repository: Repository
+    repository: RepositoryRecord
     assessment: Assessment
     assessor_results: List[AssessorResult]
     metadata: Optional[Dict] = None

@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-from ..models.repository import Repository
+from ..models.repository_record import RepositoryRecord
 
 
 class RepositoryService:
     """Service for repository metadata extraction and management."""
 
-    def extract_repo_info(self, repo_url_or_path: str) -> Repository:
+    def extract_repo_info(self, repo_url_or_path: str) -> RepositoryRecord:
         """Extract repository information from URL or local path.
 
         Args:
@@ -26,7 +26,7 @@ class RepositoryService:
         else:
             return self._from_url(repo_url_or_path)
 
-    def _from_url(self, repo_url: str) -> Repository:
+    def _from_url(self, repo_url: str) -> RepositoryRecord:
         """Create Repository from Git URL.
 
         Args:
@@ -46,14 +46,14 @@ class RepositoryService:
         else:
             name = repo_url.split("/")[-1].replace(".git", "")
 
-        return Repository(
+        return RepositoryRecord(
             repo_url=repo_url,
             name=name,
             description=None,
             primary_language=None,
         )
 
-    def _from_local_path(self, path: str) -> Repository:
+    def _from_local_path(self, path: str) -> RepositoryRecord:
         """Create Repository from local path.
 
         Args:
@@ -68,7 +68,7 @@ class RepositoryService:
         # Try to detect primary language
         primary_language = self._detect_primary_language(repo_path)
 
-        return Repository(
+        return RepositoryRecord(
             repo_url=f"file://{repo_path}",
             name=name,
             description=f"Local repository at {path}",

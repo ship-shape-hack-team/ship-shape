@@ -23,7 +23,7 @@ function App() {
       <Page header={header}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/repository/:repoUrl" element={<RepositoryDetail />} />
+          <Route path="/assessment/:assessmentId" element={<RepositoryDetail />} />
         </Routes>
       </Page>
     </Router>

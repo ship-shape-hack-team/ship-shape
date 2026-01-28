@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any
 
+from ...models.attribute import Attribute
 from ...models.finding import Finding
 from ...models.repository import Repository
 from ..base import BaseAssessor
@@ -20,6 +21,18 @@ class TestCoverageAssessor(BaseAssessor):
     @property
     def tier(self) -> int:
         return 1  # Essential
+    
+    @property
+    def attribute(self) -> Attribute:
+        return Attribute(
+            id=self.attribute_id,
+            name="Test Coverage (Multi-Language)",
+            category="Testing",
+            tier=self.tier,
+            description="Unit, integration, and E2E test coverage across all languages",
+            criteria="80% test coverage with comprehensive test suite",
+            default_weight=0.25,
+        )
 
     def assess(self, repository: Repository) -> Finding:
         """Assess test coverage for the repository.
@@ -35,50 +48,66 @@ class TestCoverageAssessor(BaseAssessor):
 
             # Check if tests exist
             if not self._has_tests(repo_path):
-                return Finding.fail(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="fail",
                     score=0,
-                    evidence="No test files found in repository",
-                    remediation="Add unit tests using pytest, unittest, or similar framework"
+                    measured_value=0,
+                    threshold=80,
+                    evidence=["No test files found in repository"],
+                    remediation="Add unit tests using pytest, unittest, Jest, Go test, or similar framework",
+                    error_message=None,
                 )
 
             # Try to detect and run coverage
             coverage_metrics = self._detect_coverage(repo_path)
 
             if coverage_metrics is None:
-                return Finding.fail(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="fail",
                     score=0,
-                    evidence="Tests found but coverage could not be determined",
-                    remediation="Install coverage.py and run: pip install coverage; coverage run -m pytest; coverage report"
+                    measured_value=0,
+                    threshold=80,
+                    evidence=["Tests found but coverage could not be determined"],
+                    remediation="Install coverage tools for your language (coverage.py, nyc, go test -cover)",
+                    error_message=None,
                 )
 
             # Calculate score based on line coverage
             line_coverage = coverage_metrics.get("line_coverage", 0)
             score = min(100, (line_coverage / 80) * 100)  # 80% coverage = 100 score
 
-            evidence = self._format_evidence(coverage_metrics)
-            remediation = self._generate_remediation(coverage_metrics)
+            evidence_str = self._format_evidence(coverage_metrics)
+            remediation_str = self._generate_remediation(coverage_metrics)
 
             if line_coverage >= 80:
-                return Finding.pass_(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="pass",
                     score=score,
-                    evidence=evidence,
-                    remediation=remediation
+                    measured_value=line_coverage,
+                    threshold=80,
+                    evidence=[evidence_str],
+                    remediation=remediation_str,
+                    error_message=None,
                 )
             else:
-                return Finding.fail(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="fail",
                     score=score,
-                    evidence=evidence,
-                    remediation=remediation
+                    measured_value=line_coverage,
+                    threshold=80,
+                    evidence=[evidence_str],
+                    remediation=remediation_str,
+                    error_message=None,
                 )
 
         except Exception as e:
             return Finding.error(
-                attribute_id=self.attribute_id,
-                error_message=f"Coverage assessment failed: {str(e)}"
+                attribute=self.attribute,
+                reason=f"Coverage assessment failed: {str(e)}"
             )
 
     def _has_tests(self, repo_path: Path) -> bool:

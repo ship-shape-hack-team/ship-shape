@@ -15,6 +15,7 @@ export interface RepositorySummary {
   primary_language?: string | null;
   last_assessed?: string | null;
   overall_score?: number | null;
+  latest_assessment_id?: string | null;
 }
 
 export interface Assessment {
@@ -78,8 +79,9 @@ class ApiClient {
   }
 
   async getRepository(repo_url: string) {
-    const encoded = encodeURIComponent(repo_url);
-    const response = await this.client.get(`/repositories/${encoded}`);
+    const response = await this.client.get('/repository', {
+      params: { repo_url }
+    });
     return response.data;
   }
 

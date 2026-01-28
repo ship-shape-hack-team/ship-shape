@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Dict, List
 
+from ...models.attribute import Attribute
 from ...models.finding import Finding
 from ...models.repository import Repository
 from ..base import BaseAssessor
@@ -18,6 +19,18 @@ class EcosystemToolsAssessor(BaseAssessor):
     @property
     def tier(self) -> int:
         return 1  # Essential
+    
+    @property
+    def attribute(self) -> Attribute:
+        return Attribute(
+            id=self.attribute_id,
+            name="Ecosystem Tools",
+            category="DevOps",
+            tier=self.tier,
+            description="CI/CD, code coverage, security scanning, linting, and dependency management",
+            criteria="CI/CD present, coverage tracking, security scanning configured",
+            default_weight=0.20,
+        )
 
     def assess(self, repository: Repository) -> Finding:
         """Assess ecosystem tools for the repository."""
@@ -26,28 +39,36 @@ class EcosystemToolsAssessor(BaseAssessor):
 
             tools_found = self._detect_tools(repo_path)
             score = self._calculate_score(tools_found)
-            evidence = self._format_evidence(tools_found)
-            remediation = self._generate_remediation(tools_found)
+            evidence_str = self._format_evidence(tools_found)
+            remediation_str = self._generate_remediation(tools_found)
 
             if score >= 70:
-                return Finding.pass_(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="pass",
                     score=score,
-                    evidence=evidence,
-                    remediation=remediation
+                    measured_value=score,
+                    threshold=70,
+                    evidence=[evidence_str],
+                    remediation=remediation_str,
+                    error_message=None,
                 )
             else:
-                return Finding.fail(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="fail",
                     score=score,
-                    evidence=evidence,
-                    remediation=remediation
+                    measured_value=score,
+                    threshold=70,
+                    evidence=[evidence_str],
+                    remediation=remediation_str,
+                    error_message=None,
                 )
 
         except Exception as e:
             return Finding.error(
-                attribute_id=self.attribute_id,
-                error_message=f"Ecosystem tools assessment failed: {str(e)}"
+                attribute=self.attribute,
+                reason=f"Ecosystem tools assessment failed: {str(e)}"
             )
 
     def _detect_tools(self, repo_path: Path) -> Dict[str, bool]:

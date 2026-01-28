@@ -86,17 +86,29 @@ class DatabaseConnection:
         if not schema_path.exists():
             raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
-        # Read and execute schema SQL
+        # Read schema SQL
         with open(schema_path, "r") as f:
             schema_sql = f.read()
 
-        # Execute schema creation
-        with self.engine.begin() as connection:
-            # Split by semicolons and execute each statement
-            for statement in schema_sql.split(";"):
-                statement = statement.strip()
-                if statement:
-                    connection.execute(statement)
+        # For SQLite, use executescript which handles multiple statements
+        if self.database_url.startswith("sqlite"):
+            import sqlite3
+            # Get raw connection (not a context manager in SQLAlchemy)
+            conn = self.engine.raw_connection()
+            try:
+                conn.executescript(schema_sql)
+                conn.commit()
+            finally:
+                conn.close()
+        else:
+            # For PostgreSQL, execute statement by statement
+            from sqlalchemy import text
+            
+            with self.engine.begin() as connection:
+                for statement in schema_sql.split(";"):
+                    statement = statement.strip()
+                    if statement and not statement.startswith("--"):
+                        connection.execute(text(statement))
 
     @contextmanager
     def get_session(self) -> Generator[Session, None, None]:

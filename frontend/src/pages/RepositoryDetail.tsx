@@ -26,7 +26,7 @@ import { getPerformanceTier } from '../types';
 import apiClient from '../services/api';
 
 export const RepositoryDetail: React.FC = () => {
-  const { repoUrl } = useParams<{ repoUrl: string }>();
+  const { assessmentId } = useParams<{ assessmentId: string }>();
   const navigate = useNavigate();
   const [assessment, setAssessment] = useState<AssessmentDetailed | null>(null);
   const [repository, setRepository] = useState<RepositorySummary | null>(null);
@@ -34,34 +34,31 @@ export const RepositoryDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (repoUrl) {
-      loadAssessmentData(decodeURIComponent(repoUrl));
+    if (assessmentId) {
+      loadAssessmentData(assessmentId);
     }
-  }, [repoUrl]);
+  }, [assessmentId]);
 
-  const loadAssessmentData = async (url: string) => {
+  const loadAssessmentData = async (id: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Get repository
-      const repoData = await apiClient.getRepository(url);
-      setRepository(repoData);
-
-      // Get latest assessment
-      const assessmentsData = await apiClient.getRepositoryAssessments(url, 1);
+      // Get assessment with results directly
+      const detailedAssessment = await apiClient.getAssessment(id, true);
+      setAssessment(detailedAssessment);
       
-      if (assessmentsData.assessments && assessmentsData.assessments.length > 0) {
-        const latestAssessmentId = assessmentsData.assessments[0].id;
-        const detailedAssessment = await apiClient.getAssessment(latestAssessmentId, true);
-        setAssessment(detailedAssessment);
-      }
+      // Create repository summary from assessment data
+      setRepository({
+        repo_url: detailedAssessment.repo_url,
+        name: detailedAssessment.repo_url.split('/').pop() || 'repository',
+        primary_language: null,
+        overall_score: detailedAssessment.overall_score,
+        last_assessed: detailedAssessment.completed_at,
+      });
     } catch (err) {
       console.error('Failed to load assessment:', err);
-      setError('Failed to load assessment data. Showing mock data for demonstration.');
-      // Load mock data
-      setAssessment(getMockAssessment(url));
-      setRepository(getMockRepository(url));
+      setError('Failed to load assessment. Make sure backend is running.');
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +109,7 @@ export const RepositoryDetail: React.FC = () => {
 
       {error && (
         <PageSection>
-          <Alert variant={AlertVariant.info} title="Demo Mode" isInline>
+          <Alert variant={AlertVariant.warning} title="Backend Not Connected" isInline>
             {error}
           </Alert>
         </PageSection>
@@ -163,76 +160,3 @@ export const RepositoryDetail: React.FC = () => {
   );
 };
 
-// Mock data for demonstration
-function getMockRepository(url: string): RepositorySummary {
-  return {
-    repo_url: url,
-    name: url.includes('model-registry') ? 'kubeflow/model-registry' : 'ship-shape',
-    primary_language: url.includes('model-registry') ? 'Go' : 'Python',
-    overall_score: url.includes('model-registry') ? 47.9 : 86.3,
-    last_assessed: new Date().toISOString(),
-  };
-}
-
-function getMockAssessment(url: string): AssessmentDetailed {
-  const isModelRegistry = url.includes('model-registry');
-
-  return {
-    id: 'mock-assessment-id',
-    repo_url: url,
-    overall_score: isModelRegistry ? 47.9 : 86.3,
-    status: 'completed',
-    started_at: new Date().toISOString(),
-    completed_at: new Date().toISOString(),
-    assessor_results: [
-      {
-        id: '1',
-        assessor_name: 'quality_test_coverage',
-        score: isModelRegistry ? 12.7 : 75.0,
-        metrics: {
-          evidence: isModelRegistry
-            ? 'Line coverage: 10.1% | Test count: 179'
-            : 'Line coverage: 75.0% | Test count: 55',
-        },
-        status: 'success',
-        executed_at: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        assessor_name: 'quality_integration_tests',
-        score: isModelRegistry ? 30.0 : 85.0,
-        metrics: {
-          evidence: isModelRegistry
-            ? 'Integration test files: 3'
-            : 'Integration test files: 8 | ✓ Database tests detected',
-        },
-        status: 'success',
-        executed_at: new Date().toISOString(),
-      },
-      {
-        id: '3',
-        assessor_name: 'quality_documentation_standards',
-        score: isModelRegistry ? 77.6 : 90.0,
-        metrics: {
-          evidence: isModelRegistry
-            ? 'README score: 100/100 | Docstring coverage: 94/100'
-            : 'README score: 100/100 | Docstring coverage: 85/100 | Architecture docs: ✓',
-        },
-        status: 'success',
-        executed_at: new Date().toISOString(),
-      },
-      {
-        id: '4',
-        assessor_name: 'quality_ecosystem_tools',
-        score: isModelRegistry ? 80.0 : 95.0,
-        metrics: {
-          evidence: isModelRegistry
-            ? 'Found: CI/CD, Security Scanning, Linting, Dependency Management | Missing: Code Coverage'
-            : 'Found: CI/CD, Code Coverage, Security Scanning, Linting, Dependency Management, Pre Commit Hooks',
-        },
-        status: 'success',
-        executed_at: new Date().toISOString(),
-      },
-    ],
-  };
-}

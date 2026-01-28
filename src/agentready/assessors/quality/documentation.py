@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from ...models.attribute import Attribute
 from ...models.finding import Finding
 from ...models.repository import Repository
 from ..base import BaseAssessor
@@ -17,6 +18,18 @@ class DocumentationStandardsAssessor(BaseAssessor):
     @property
     def tier(self) -> int:
         return 1  # Essential
+    
+    @property
+    def attribute(self) -> Attribute:
+        return Attribute(
+            id=self.attribute_id,
+            name="Documentation Standards",
+            category="Documentation",
+            tier=self.tier,
+            description="README quality, docstring coverage, and architecture documentation",
+            criteria="Complete README, 70%+ docstrings, architecture docs present",
+            default_weight=0.20,
+        )
 
     def assess(self, repository: Repository) -> Finding:
         """Assess documentation for the repository."""
@@ -36,29 +49,36 @@ class DocumentationStandardsAssessor(BaseAssessor):
                 f"Architecture docs: {'✓' if architecture_docs > 50 else '✗'}",
             ]
 
-            evidence = " | ".join(evidence_parts)
-
-            remediation = self._generate_remediation(readme_score, docstring_score, architecture_docs)
+            evidence_list = evidence_parts
+            remediation_str = self._generate_remediation(readme_score, docstring_score, architecture_docs)
 
             if overall_score >= 70:
-                return Finding.pass_(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="pass",
                     score=overall_score,
-                    evidence=evidence,
-                    remediation=remediation
+                    measured_value=overall_score,
+                    threshold=70,
+                    evidence=evidence_list,
+                    remediation=remediation_str,
+                    error_message=None,
                 )
             else:
-                return Finding.fail(
-                    attribute_id=self.attribute_id,
+                return Finding(
+                    attribute=self.attribute,
+                    status="fail",
                     score=overall_score,
-                    evidence=evidence,
-                    remediation=remediation
+                    measured_value=overall_score,
+                    threshold=70,
+                    evidence=evidence_list,
+                    remediation=remediation_str,
+                    error_message=None,
                 )
 
         except Exception as e:
             return Finding.error(
-                attribute_id=self.attribute_id,
-                error_message=f"Documentation assessment failed: {str(e)}"
+                attribute=self.attribute,
+                reason=f"Documentation assessment failed: {str(e)}"
             )
 
     def _assess_readme(self, repo_path: Path) -> float:
