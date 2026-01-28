@@ -79,15 +79,17 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
               style={{ cursor: 'pointer' }}
             >
               <Td dataLabel="Repository">
-                <strong>{repo.name}</strong>
-                <div style={{ fontSize: '0.9em', color: '#666' }}>{repo.repo_url}</div>
+                <strong style={{ color: '#151515' }}>{repo.name}</strong>
+                <div style={{ fontSize: '0.9em', color: '#6a6e73' }}>{repo.repo_url}</div>
               </Td>
-              <Td dataLabel="Language">{repo.primary_language || 'Unknown'}</Td>
+              <Td dataLabel="Language">
+                <span style={{ color: '#151515' }}>{repo.primary_language || 'Unknown'}</span>
+              </Td>
               <Td dataLabel="Overall Score">
                 <span style={{ fontSize: '1.2em', fontWeight: 'bold', color: scoreColor }}>
                   {score.toFixed(1)}
                 </span>
-                <span style={{ color: '#666' }}>/100</span>
+                <span style={{ color: '#6a6e73' }}>/100</span>
               </Td>
               <Td dataLabel="Tier">
                 <Label color={scoreColor as any}>{tier}</Label>

@@ -18,6 +18,7 @@ import {
 import { ArrowLeftIcon } from '@patternfly/react-icons';
 import { ScoreCard } from '../components/ScoreCard';
 import { RadarChart } from '../components/RadarChart';
+import { StellarChart } from '../components/StellarChart';
 import { DrillDownView } from '../components/DrillDownView';
 import { RecommendationsList } from '../components/RecommendationsList';
 import { AssessmentDetailed, RepositorySummary } from '../types';
@@ -101,10 +102,10 @@ export const RepositoryDetail: React.FC = () => {
             Back
           </Button>
           <div>
-            <Title headingLevel="h1" size="2xl">
+            <Title headingLevel="h1" size="2xl" style={{ color: '#151515' }}>
               {repository.name}
             </Title>
-            <p style={{ color: '#666' }}>{repository.repo_url}</p>
+            <p style={{ color: '#6a6e73' }}>{repository.repo_url}</p>
           </div>
         </div>
       </PageSection>
@@ -127,7 +128,14 @@ export const RepositoryDetail: React.FC = () => {
             />
           </GridItem>
 
-          <GridItem span={12}>
+          <GridItem span={6}>
+            <StellarChart
+              assessorResults={assessment.assessor_results}
+              repositoryName={repository.name}
+            />
+          </GridItem>
+
+          <GridItem span={6}>
             <RadarChart
               assessorResults={assessment.assessor_results}
               repositoryName={repository.name}
@@ -135,7 +143,7 @@ export const RepositoryDetail: React.FC = () => {
           </GridItem>
 
           <GridItem span={12}>
-            <Title headingLevel="h2" size="xl" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
+            <Title headingLevel="h2" size="xl" style={{ marginTop: '2rem', marginBottom: '1rem', color: '#151515' }}>
               Detailed Results
             </Title>
           </GridItem>

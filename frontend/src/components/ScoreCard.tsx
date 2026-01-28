@@ -17,7 +17,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({ title, score, subtitle }) 
 
   return (
     <Card isCompact>
-      <CardTitle>{title}</CardTitle>
+      <CardTitle style={{ color: '#151515' }}>{title}</CardTitle>
       <CardBody>
         <div style={{ textAlign: 'center' }}>
           <div
@@ -30,9 +30,9 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({ title, score, subtitle }) 
           >
             {score.toFixed(1)}
           </div>
-          <div style={{ fontSize: '1.2rem', color: '#666' }}>/100</div>
+          <div style={{ fontSize: '1.2rem', color: '#6a6e73' }}>/100</div>
           {subtitle && (
-            <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
+            <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#6a6e73' }}>
               {subtitle}
             </div>
           )}

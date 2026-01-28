@@ -19,12 +19,55 @@ interface DrillDownViewProps {
   assessorResult: AssessorResult;
 }
 
+// Helper function to format metrics as bullet points
+function formatMetricsAsBullets(metrics: Record<string, any>): string[] {
+  const bullets: string[] = [];
+
+  // Handle evidence field specially - split by pipe or comma
+  if (metrics.evidence) {
+    const evidence = metrics.evidence.toString();
+    if (evidence.includes('|')) {
+      bullets.push(...evidence.split('|').map((s: string) => s.trim()));
+    } else {
+      bullets.push(evidence);
+    }
+  }
+
+  // Add other metrics as key-value pairs
+  Object.entries(metrics).forEach(([key, value]) => {
+    if (key === 'evidence' || key === 'status') return; // Skip, already handled
+    
+    if (typeof value === 'boolean') {
+      bullets.push(`${formatKey(key)}: ${value ? '✓ Yes' : '✗ No'}`);
+    } else if (typeof value === 'number') {
+      bullets.push(`${formatKey(key)}: ${value}`);
+    } else if (typeof value === 'string') {
+      bullets.push(`${formatKey(key)}: ${value}`);
+    } else if (typeof value === 'object' && value !== null) {
+      // For nested objects, flatten one level
+      Object.entries(value).forEach(([subKey, subValue]) => {
+        bullets.push(`${formatKey(key)} - ${formatKey(subKey)}: ${subValue}`);
+      });
+    }
+  });
+
+  return bullets.length > 0 ? bullets : ['No detailed metrics available'];
+}
+
+function formatKey(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 export const DrillDownView: React.FC<DrillDownViewProps> = ({ assessorResult }) => {
   const color = getScoreColor(assessorResult.score);
 
   return (
     <Card>
-      <CardTitle>{formatAssessorName(assessorResult.assessor_name)}</CardTitle>
+      <CardTitle style={{ color: '#151515' }}>{formatAssessorName(assessorResult.assessor_name)}</CardTitle>
       <CardBody>
         <div style={{ marginBottom: '1rem' }}>
           <span style={{ fontSize: '2rem', fontWeight: 'bold', color }}>
@@ -35,38 +78,31 @@ export const DrillDownView: React.FC<DrillDownViewProps> = ({ assessorResult }) 
 
         <DescriptionList isHorizontal>
           <DescriptionListGroup>
-            <DescriptionListTerm>Status</DescriptionListTerm>
-            <DescriptionListDescription>
+            <DescriptionListTerm style={{ color: '#151515' }}>Status</DescriptionListTerm>
+            <DescriptionListDescription style={{ color: '#151515' }}>
               {assessorResult.status.toUpperCase()}
             </DescriptionListDescription>
           </DescriptionListGroup>
 
           <DescriptionListGroup>
-            <DescriptionListTerm>Executed At</DescriptionListTerm>
-            <DescriptionListDescription>
+            <DescriptionListTerm style={{ color: '#151515' }}>Executed At</DescriptionListTerm>
+            <DescriptionListDescription style={{ color: '#6a6e73' }}>
               {new Date(assessorResult.executed_at).toLocaleString()}
             </DescriptionListDescription>
           </DescriptionListGroup>
 
-          {assessorResult.metrics.evidence && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Evidence</DescriptionListTerm>
-              <DescriptionListDescription>
-                {assessorResult.metrics.evidence}
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
-
-          {Object.keys(assessorResult.metrics).length > 0 && (
-            <DescriptionListGroup>
-              <DescriptionListTerm>Metrics</DescriptionListTerm>
-              <DescriptionListDescription>
-                <pre style={{ fontSize: '0.9em', backgroundColor: '#f5f5f5', padding: '0.5rem', borderRadius: '4px' }}>
-                  {JSON.stringify(assessorResult.metrics, null, 2)}
-                </pre>
-              </DescriptionListDescription>
-            </DescriptionListGroup>
-          )}
+          <DescriptionListGroup>
+            <DescriptionListTerm style={{ color: '#151515' }}>Key Findings</DescriptionListTerm>
+            <DescriptionListDescription>
+              <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#151515' }}>
+                {formatMetricsAsBullets(assessorResult.metrics).map((item, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </DescriptionListDescription>
+          </DescriptionListGroup>
         </DescriptionList>
       </CardBody>
     </Card>

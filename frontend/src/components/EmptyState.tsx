@@ -20,10 +20,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onAction }) => {
   return (
     <PFEmptyState>
       <EmptyStateIcon icon={CubesIcon} />
-      <Title headingLevel="h1" size="lg">
+      <Title headingLevel="h1" size="lg" style={{ color: '#151515' }}>
         No Repositories Assessed
       </Title>
-      <EmptyStateBody>
+      <EmptyStateBody style={{ color: '#6a6e73' }}>
         Get started by adding a repository URL in the input field above.
         The system will automatically assess the repository's quality across multiple dimensions.
       </EmptyStateBody>

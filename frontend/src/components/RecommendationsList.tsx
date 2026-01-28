@@ -30,9 +30,9 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
     return (
       <Card>
         <CardTitle>Recommendations</CardTitle>
-        <CardBody>
-          <p>✅ No critical recommendations. Quality looks good!</p>
-        </CardBody>
+      <CardBody>
+        <p style={{ color: '#151515' }}>✅ No critical recommendations. Quality looks good!</p>
+      </CardBody>
       </Card>
     );
   }
@@ -54,7 +54,7 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
 
   return (
     <Card>
-      <CardTitle>Recommendations ({recommendations.length})</CardTitle>
+      <CardTitle style={{ color: '#151515' }}>Recommendations ({recommendations.length})</CardTitle>
       <CardBody>
         <List>
           {(['critical', 'high', 'medium', 'low'] as const).map(severity => {
@@ -70,8 +70,8 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                         {severity.toUpperCase()}
                       </Label>
                       <div>
-                        <div style={{ fontWeight: 500 }}>{rec.description}</div>
-                        <div style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25rem' }}>
+                        <div style={{ fontWeight: 500, color: '#151515' }}>{rec.description}</div>
+                        <div style={{ fontSize: '0.9em', color: '#6a6e73', marginTop: '0.25rem' }}>
                           Category: {rec.category}
                         </div>
                       </div>

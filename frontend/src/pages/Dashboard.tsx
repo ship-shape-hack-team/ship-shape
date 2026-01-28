@@ -64,10 +64,10 @@ export const Dashboard: React.FC = () => {
   return (
     <>
       <PageSection variant="light">
-        <Title headingLevel="h1" size="2xl">
+        <Title headingLevel="h1" size="2xl" style={{ color: '#151515' }}>
           Quality Profiling Dashboard
         </Title>
-        <p style={{ marginTop: '0.5rem', color: '#666' }}>
+        <p style={{ marginTop: '0.5rem', color: '#6a6e73' }}>
           Assess and compare repository quality across multiple dimensions
         </p>
       </PageSection>

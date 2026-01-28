@@ -32,7 +32,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   // We'll use a simple visualization instead
   return (
     <Card>
-      <CardTitle>Quality Dimensions for {repositoryName}</CardTitle>
+      <CardTitle style={{ color: '#151515' }}>Quality Dimensions (Bar View)</CardTitle>
       <CardBody>
         <div style={{ padding: '2rem' }}>
           {dimensions.map((dim, index) => {
@@ -42,7 +42,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({
             return (
               <div key={index} style={{ marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 500 }}>{dim.name}</span>
+                  <span style={{ fontWeight: 500, color: '#151515' }}>{dim.name}</span>
                   <span style={{ fontWeight: 'bold', color }}>{percentage.toFixed(1)}/100</span>
                 </div>
                 <div
