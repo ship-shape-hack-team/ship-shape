@@ -23,19 +23,9 @@ interface DrillDownViewProps {
 function formatMetricsAsBullets(metrics: Record<string, any>): string[] {
   const bullets: string[] = [];
 
-  // Handle evidence field specially - split by pipe or comma
-  if (metrics.evidence) {
-    const evidence = metrics.evidence.toString();
-    if (evidence.includes('|')) {
-      bullets.push(...evidence.split('|').map((s: string) => s.trim()));
-    } else {
-      bullets.push(evidence);
-    }
-  }
-
-  // Add other metrics as key-value pairs
+  // Add other metrics as key-value pairs (skip evidence and status)
   Object.entries(metrics).forEach(([key, value]) => {
-    if (key === 'evidence' || key === 'status') return; // Skip, already handled
+    if (key === 'evidence' || key === 'status') return; // Skip these
     
     if (typeof value === 'boolean') {
       bullets.push(`${formatKey(key)}: ${value ? '✓ Yes' : '✗ No'}`);
@@ -91,18 +81,35 @@ export const DrillDownView: React.FC<DrillDownViewProps> = ({ assessorResult }) 
             </DescriptionListDescription>
           </DescriptionListGroup>
 
-          <DescriptionListGroup>
-            <DescriptionListTerm style={{ color: '#151515' }}>Key Findings</DescriptionListTerm>
-            <DescriptionListDescription>
-              <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#151515' }}>
-                {formatMetricsAsBullets(assessorResult.metrics).map((item, idx) => (
-                  <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
+          {assessorResult.metrics.evidence && (
+            <DescriptionListGroup>
+              <DescriptionListTerm style={{ color: '#151515' }}>Evidence</DescriptionListTerm>
+              <DescriptionListDescription>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#151515' }}>
+                  {assessorResult.metrics.evidence.split('|').map((item: string, idx: number) => (
+                    <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                      {item.trim()}
+                    </li>
+                  ))}
+                </ul>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
+
+          {Object.keys(assessorResult.metrics).filter(k => k !== 'evidence' && k !== 'status').length > 0 && (
+            <DescriptionListGroup>
+              <DescriptionListTerm style={{ color: '#151515' }}>Additional Metrics</DescriptionListTerm>
+              <DescriptionListDescription>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#151515' }}>
+                  {formatMetricsAsBullets(assessorResult.metrics).map((item, idx) => (
+                    <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          )}
         </DescriptionList>
       </CardBody>
     </Card>
