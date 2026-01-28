@@ -75,9 +75,7 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
           return (
             <Tr
               key={repo.repo_url}
-              isHoverable
-              isClickable
-              onRowClick={() => onRowClick(repo)}
+              onClick={() => onRowClick(repo)}
               style={{ cursor: 'pointer' }}
             >
               <Td dataLabel="Repository">
