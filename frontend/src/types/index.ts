@@ -18,6 +18,7 @@ export interface RepositorySummary {
   primary_language?: string | null;
   last_assessed?: string | null;
   overall_score?: number | null;
+  latest_assessment_id?: string | null;
 }
 
 export interface Assessment {
