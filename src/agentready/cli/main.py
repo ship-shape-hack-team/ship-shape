@@ -29,7 +29,10 @@ from ..utils.subprocess_utils import safe_subprocess_run
 
 # Lightweight commands - imported immediately
 from .align import align
+from .assess_quality import assess_quality
+from .assess_batch_quality import assess_batch_quality
 from .benchmark import benchmark, validate_assessor
+from .benchmark_quality import benchmark_quality, benchmark_show
 from .bootstrap import bootstrap
 from .demo import demo
 from .repomix import repomix_generate
@@ -543,7 +546,11 @@ def generate_config():
 
 # Register lightweight commands (heavy commands loaded lazily via LazyGroup)
 cli.add_command(align)
+cli.add_command(assess_quality)
+cli.add_command(assess_batch_quality)
 cli.add_command(benchmark)
+cli.add_command(benchmark_quality)
+cli.add_command(benchmark_show)
 cli.add_command(validate_assessor)
 cli.add_command(bootstrap)
 cli.add_command(demo)
