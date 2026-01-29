@@ -15,16 +15,10 @@ from typing import List, Optional
 
 from ..assessors.quality import (
     APIDocumentationAssessor,
-    ContractTestingAssessor,
     DocumentationStandardsAssessor,
     EcosystemToolsAssessor,
-    IntegrationDatabaseSetupAssessor,
     IntegrationTestsAssessor,
-    IntegrationTestStructureAssessor,
-    MutationTestingAssessor,
     TestCoverageAssessor,
-    TestFixturesAssessor,
-    TestPerformanceBenchmarksAssessor,
     UnitTestNamingAssessor,
 )
 from ..models.assessment import Assessment
@@ -47,15 +41,10 @@ class AssessmentRunner:
             EcosystemToolsAssessor(),
             APIDocumentationAssessor(),
             UnitTestNamingAssessor(),
-            IntegrationTestStructureAssessor(),
-            TestFixturesAssessor(),
-            IntegrationDatabaseSetupAssessor(),
-            TestPerformanceBenchmarksAssessor(),
-            ContractTestingAssessor(),
-            MutationTestingAssessor(),
         ]
         self.scorer = QualityScorerService()
         self.store = AssessmentStore()
+        self._detected_primary_language = None
 
     def clone_repository(self, repo_url: str, target_dir: Path) -> bool:
         """Clone a git repository.
@@ -114,13 +103,13 @@ class AssessmentRunner:
                 self._update_assessment_status(assessment_id, "failed")
                 return None
 
-            # Detect primary language from cloned repo if not provided
-            if not primary_language:
-                primary_language = self._detect_primary_language(temp_dir)
-                if primary_language:
-                    print(f"  Detected language: {primary_language}")
-                    # Update repository with detected language
-                    self._update_repository_language(repo_url, primary_language)
+            # Detect primary language from cloned repository
+            detected_language = self._detect_language_from_path(temp_dir)
+            if detected_language and not primary_language:
+                primary_language = detected_language
+
+            # Store for later use when updating repository
+            self._detected_primary_language = primary_language
 
             # Create Repository model for assessors
             repo = Repository(
@@ -193,6 +182,59 @@ class AssessmentRunner:
                     shutil.rmtree(temp_dir)
                 except Exception as e:
                     print(f"Failed to cleanup temp directory: {e}")
+
+    def _detect_language_from_path(self, repo_path: Path) -> Optional[str]:
+        """Detect primary programming language from file extensions.
+
+        Args:
+            repo_path: Path to repository
+
+        Returns:
+            Primary language name or None
+        """
+        language_extensions = {
+            ".py": "Python",
+            ".js": "JavaScript",
+            ".ts": "TypeScript",
+            ".tsx": "TypeScript",
+            ".jsx": "JavaScript",
+            ".java": "Java",
+            ".go": "Go",
+            ".rs": "Rust",
+            ".rb": "Ruby",
+            ".php": "PHP",
+            ".swift": "Swift",
+            ".kt": "Kotlin",
+            ".cpp": "C++",
+            ".c": "C",
+            ".cs": "C#",
+            ".scala": "Scala",
+            ".r": "R",
+            ".m": "Objective-C",
+            ".sh": "Shell",
+        }
+
+        # Count files by extension
+        extension_counts = {}
+
+        try:
+            for ext, lang in language_extensions.items():
+                # Use glob to count files with this extension
+                count = len(list(repo_path.rglob(f"*{ext}")))
+                if count > 0:
+                    extension_counts[lang] = extension_counts.get(lang, 0) + count
+
+            if not extension_counts:
+                return None
+
+            # Return language with most files
+            primary_lang = max(extension_counts, key=extension_counts.get)
+            print(f"Detected primary language: {primary_lang} ({extension_counts[primary_lang]} files)")
+            return primary_lang
+
+        except Exception as e:
+            print(f"Failed to detect language: {e}")
+            return None
 
     def _create_pending_assessment(self, assessment_id: str, repo_url: str):
         """Create a pending assessment record."""
@@ -280,12 +322,13 @@ class AssessmentRunner:
                     },
                 )
 
-            # Update repository with latest assessment
+            # Update repository with latest assessment and language
             repo_query = text(
                 """
                 UPDATE repositories
                 SET latest_assessment_id = :assessment_id,
-                    last_assessed = :last_assessed
+                    last_assessed = :last_assessed,
+                    primary_language = COALESCE(:primary_language, primary_language)
                 WHERE repo_url = :repo_url
                 """
             )
@@ -294,84 +337,7 @@ class AssessmentRunner:
                 {
                     "assessment_id": assessment_id,
                     "last_assessed": datetime.utcnow(),
+                    "primary_language": self._detected_primary_language,
                     "repo_url": repo_url,
-                },
-            )
-
-    def _detect_primary_language(self, repo_path: Path) -> Optional[str]:
-        """Detect primary programming language from file extensions.
-
-        Args:
-            repo_path: Path to cloned repository
-
-        Returns:
-            Primary language name or None
-        """
-        language_extensions = {
-            ".py": "Python",
-            ".js": "JavaScript",
-            ".ts": "TypeScript",
-            ".tsx": "TypeScript",
-            ".jsx": "JavaScript",
-            ".java": "Java",
-            ".go": "Go",
-            ".rs": "Rust",
-            ".rb": "Ruby",
-            ".php": "PHP",
-            ".swift": "Swift",
-            ".kt": "Kotlin",
-            ".cpp": "C++",
-            ".c": "C",
-            ".cs": "C#",
-        }
-
-        # Directories to skip
-        skip_dirs = {
-            '.git', 'node_modules', '.venv', 'venv', '__pycache__',
-            'vendor', 'target', 'build', 'dist', '.gradle', 'bin', 'obj'
-        }
-
-        # Count files by extension
-        extension_counts = {}
-
-        import os
-        for root, dirs, files in os.walk(repo_path):
-            # Skip non-source directories
-            dirs[:] = [d for d in dirs if d not in skip_dirs]
-            
-            for file in files:
-                ext = os.path.splitext(file)[1].lower()
-                if ext in language_extensions:
-                    lang = language_extensions[ext]
-                    extension_counts[lang] = extension_counts.get(lang, 0) + 1
-
-        if not extension_counts:
-            return None
-
-        # Return language with most files
-        return max(extension_counts, key=extension_counts.get)
-
-    def _update_repository_language(self, repo_url: str, primary_language: str):
-        """Update repository's primary language in database.
-
-        Args:
-            repo_url: Repository URL
-            primary_language: Detected primary language
-        """
-        from ..storage.connection import get_db_session
-
-        with get_db_session(self.store.database_url) as session:
-            query = text(
-                """
-                UPDATE repositories
-                SET primary_language = :language
-                WHERE repo_url = :repo_url
-                """
-            )
-            session.execute(
-                query,
-                {
-                    "repo_url": repo_url,
-                    "language": primary_language,
                 },
             )

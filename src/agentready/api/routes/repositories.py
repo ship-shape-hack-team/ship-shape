@@ -47,7 +47,7 @@ async def list_repositories(
         with get_db_session() as session:
             # Query repositories with latest assessment using stored ID
             query = text("""
-                SELECT 
+                SELECT
                     r.repo_url,
                     r.name,
                     r.primary_language,
@@ -58,7 +58,13 @@ async def list_repositories(
                         FROM assessments a
                         WHERE a.id = r.latest_assessment_id
                         LIMIT 1
-                    ) as overall_score
+                    ) as overall_score,
+                    (
+                        SELECT a.status
+                        FROM assessments a
+                        WHERE a.id = r.latest_assessment_id
+                        LIMIT 1
+                    ) as assessment_status
                 FROM repositories r
                 ORDER BY r.last_assessed DESC
                 LIMIT :limit OFFSET :offset
@@ -78,6 +84,7 @@ async def list_repositories(
                     "last_assessed": row[3],
                     "latest_assessment_id": row[4],
                     "overall_score": row[5],
+                    "assessment_status": row[6],
                 }
                 for row in results
             ]

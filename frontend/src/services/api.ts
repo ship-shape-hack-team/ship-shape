@@ -16,6 +16,7 @@ export interface RepositorySummary {
   last_assessed?: string | null;
   overall_score?: number | null;
   latest_assessment_id?: string | null;
+  assessment_status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null;
 }
 
 export interface Assessment {
