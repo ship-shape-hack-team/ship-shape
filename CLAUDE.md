@@ -453,3 +453,9 @@ Use the `github-pages-docs` agent for documentation updates after:
 - **ALWAYS run actionlint and fix any issues before pushing changes to GitHub Actions workflows**
 - All workflows must pass actionlint validation with zero errors/warnings
 - Use proper shell quoting and combined redirects for efficiency
+
+## Active Technologies
+- Python 3.11+ (backend assessors), TypeScript 5.x+ (frontend UI) (003-quality-profiling-ui)
+
+## Recent Changes
+- 003-quality-profiling-ui: Added Python 3.11+ (backend assessors), TypeScript 5.x+ (frontend UI)

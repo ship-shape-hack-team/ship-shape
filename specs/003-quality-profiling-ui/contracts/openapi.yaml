@@ -1,0 +1,842 @@
+openapi: 3.0.3
+info:
+  title: Ship-Shape Quality Profiling API
+  description: |
+    REST API for ship-shape quality profiling and benchmarking system.
+    Provides endpoints for repository assessment, benchmarking, and visualization.
+  version: 1.0.0
+  contact:
+    name: Ship-Shape Team
+  license:
+    name: Apache 2.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://api.ship-shape.dev/v1
+    description: Production server (future)
+
+tags:
+  - name: repositories
+    description: Repository management operations
+  - name: assessments
+    description: Assessment execution and retrieval
+  - name: benchmarks
+    description: Benchmarking and ranking operations
+  - name: health
+    description: Health and status checks
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /repositories:
+    get:
+      summary: List all repositories
+      operationId: listRepositories
+      tags:
+        - repositories
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [name, last_assessed, overall_score]
+            default: last_assessed
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repositories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RepositorySummary'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+    
+    post:
+      summary: Add a new repository
+      operationId: createRepository
+      tags:
+        - repositories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - repo_url
+              properties:
+                repo_url:
+                  type: string
+                  format: uri
+                  example: "https://github.com/owner/repo"
+                trigger_assessment:
+                  type: boolean
+                  default: true
+                  description: Whether to immediately trigger an assessment
+      responses:
+        '201':
+          description: Repository created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Repository already exists
+
+  /repositories/{repo_url_encoded}:
+    get:
+      summary: Get repository details
+      operationId: getRepository
+      tags:
+        - repositories
+      parameters:
+        - name: repo_url_encoded
+          in: path
+          required: true
+          schema:
+            type: string
+          description: URL-encoded repository URL
+      responses:
+        '200':
+          description: Repository details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      summary: Delete a repository
+      operationId: deleteRepository
+      tags:
+        - repositories
+      parameters:
+        - name: repo_url_encoded
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Repository deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assessments:
+    post:
+      summary: Trigger a new assessment
+      operationId: createAssessment
+      tags:
+        - assessments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - repo_url
+              properties:
+                repo_url:
+                  type: string
+                  format: uri
+                assessors:
+                  type: array
+                  items:
+                    type: string
+                  description: Specific assessors to run (omit for all)
+                  example: ["test_coverage", "documentation_standards"]
+      responses:
+        '202':
+          description: Assessment started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /assessments/{assessment_id}:
+    get:
+      summary: Get assessment details
+      operationId: getAssessment
+      tags:
+        - assessments
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: include_results
+          in: query
+          schema:
+            type: boolean
+            default: true
+          description: Include assessor results and recommendations
+      responses:
+        '200':
+          description: Assessment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentDetailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assessments/{assessment_id}/status:
+    get:
+      summary: Get assessment status (for polling)
+      operationId: getAssessmentStatus
+      tags:
+        - assessments
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Assessment status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, running, completed, failed, cancelled]
+                  progress:
+                    type: integer
+                    description: Percentage complete (0-100)
+                  message:
+                    type: string
+
+  /assessments/{assessment_id}/cancel:
+    post:
+      summary: Cancel a running assessment
+      operationId: cancelAssessment
+      tags:
+        - assessments
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Assessment cancelled
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          description: Assessment cannot be cancelled (already completed)
+
+  /repositories/{repo_url_encoded}/assessments:
+    get:
+      summary: Get assessment history for a repository
+      operationId: getRepositoryAssessments
+      tags:
+        - assessments
+      parameters:
+        - name: repo_url_encoded
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Assessment history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assessments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Assessment'
+                  total:
+                    type: integer
+
+  /benchmarks:
+    get:
+      summary: List benchmark snapshots
+      operationId: listBenchmarks
+      tags:
+        - benchmarks
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: List of benchmarks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  benchmarks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BenchmarkSnapshot'
+    
+    post:
+      summary: Create a new benchmark snapshot
+      operationId: createBenchmark
+      tags:
+        - benchmarks
+      responses:
+        '202':
+          description: Benchmark calculation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkSnapshot'
+        '400':
+          description: Not enough repositories assessed for benchmarking
+
+  /benchmarks/{benchmark_id}:
+    get:
+      summary: Get benchmark details
+      operationId: getBenchmark
+      tags:
+        - benchmarks
+      parameters:
+        - name: benchmark_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Benchmark details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkDetailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /benchmarks/{benchmark_id}/rankings:
+    get:
+      summary: Get repository rankings for a benchmark
+      operationId: getBenchmarkRankings
+      tags:
+        - benchmarks
+      parameters:
+        - name: benchmark_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Repository rankings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rankings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BenchmarkRanking'
+                  total:
+                    type: integer
+
+  /benchmarks/latest:
+    get:
+      summary: Get latest benchmark snapshot
+      operationId: getLatestBenchmark
+      tags:
+        - benchmarks
+      responses:
+        '200':
+          description: Latest benchmark
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkDetailed'
+        '404':
+          description: No benchmarks exist yet
+
+  /export/assessments/{assessment_id}:
+    get:
+      summary: Export assessment data
+      operationId: exportAssessment
+      tags:
+        - assessments
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, csv, pdf]
+            default: json
+      responses:
+        '200':
+          description: Exported assessment data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentDetailed'
+            text/csv:
+              schema:
+                type: string
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+components:
+  schemas:
+    Repository:
+      type: object
+      required:
+        - repo_url
+        - name
+        - created_at
+        - updated_at
+      properties:
+        repo_url:
+          type: string
+          format: uri
+          example: "https://github.com/owner/repo"
+        name:
+          type: string
+          example: "owner/repo"
+        description:
+          type: string
+          nullable: true
+        primary_language:
+          type: string
+          nullable: true
+          example: "Python"
+        last_assessed:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        latest_assessment:
+          $ref: '#/components/schemas/AssessmentSummary'
+          nullable: true
+
+    RepositorySummary:
+      type: object
+      required:
+        - repo_url
+        - name
+      properties:
+        repo_url:
+          type: string
+        name:
+          type: string
+        primary_language:
+          type: string
+          nullable: true
+        last_assessed:
+          type: string
+          format: date-time
+          nullable: true
+        overall_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          nullable: true
+
+    Assessment:
+      type: object
+      required:
+        - id
+        - repo_url
+        - status
+        - started_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        repo_url:
+          type: string
+        overall_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          nullable: true
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled]
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+          nullable: true
+
+    AssessmentSummary:
+      type: object
+      required:
+        - id
+        - overall_score
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        overall_score:
+          type: number
+          format: float
+        status:
+          type: string
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    AssessmentDetailed:
+      allOf:
+        - $ref: '#/components/schemas/Assessment'
+        - type: object
+          properties:
+            metadata:
+              $ref: '#/components/schemas/AssessmentMetadata'
+            assessor_results:
+              type: array
+              items:
+                $ref: '#/components/schemas/AssessorResult'
+
+    AssessmentMetadata:
+      type: object
+      properties:
+        commit_count:
+          type: integer
+          nullable: true
+        head_commit_sha:
+          type: string
+        file_count:
+          type: integer
+        line_count:
+          type: integer
+        languages:
+          type: object
+          additionalProperties:
+            type: integer
+        contributor_count:
+          type: integer
+          nullable: true
+
+    AssessorResult:
+      type: object
+      required:
+        - id
+        - assessor_name
+        - score
+        - status
+        - executed_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        assessor_name:
+          type: string
+          example: "test_coverage"
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        metrics:
+          type: object
+          description: Assessor-specific metrics (schema varies by assessor)
+        status:
+          type: string
+          enum: [success, failed, skipped]
+        executed_at:
+          type: string
+          format: date-time
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+
+    Recommendation:
+      type: object
+      required:
+        - id
+        - category
+        - severity
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum: [testing, documentation, security, code_quality, ecosystem, maintainability]
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        description:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+
+    BenchmarkSnapshot:
+      type: object
+      required:
+        - id
+        - created_at
+        - repository_count
+      properties:
+        id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        repository_count:
+          type: integer
+        statistical_summary:
+          $ref: '#/components/schemas/StatisticalSummary'
+          nullable: true
+
+    BenchmarkDetailed:
+      allOf:
+        - $ref: '#/components/schemas/BenchmarkSnapshot'
+        - type: object
+          required:
+            - statistical_summary
+          properties:
+            statistical_summary:
+              $ref: '#/components/schemas/StatisticalSummary'
+
+    StatisticalSummary:
+      type: object
+      properties:
+        overall_score:
+          $ref: '#/components/schemas/Statistics'
+        test_coverage:
+          $ref: '#/components/schemas/Statistics'
+        integration_tests:
+          $ref: '#/components/schemas/Statistics'
+        documentation_standards:
+          $ref: '#/components/schemas/Statistics'
+        ecosystem_tools:
+          $ref: '#/components/schemas/Statistics'
+
+    Statistics:
+      type: object
+      properties:
+        mean:
+          type: number
+          format: float
+        median:
+          type: number
+          format: float
+        std_dev:
+          type: number
+          format: float
+        min:
+          type: number
+          format: float
+        max:
+          type: number
+          format: float
+        percentiles:
+          type: object
+          properties:
+            p25:
+              type: number
+            p50:
+              type: number
+            p75:
+              type: number
+            p90:
+              type: number
+            p95:
+              type: number
+
+    BenchmarkRanking:
+      type: object
+      required:
+        - id
+        - repo_url
+        - rank
+        - percentile
+      properties:
+        id:
+          type: string
+          format: uuid
+        repo_url:
+          type: string
+        rank:
+          type: integer
+          minimum: 1
+        percentile:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        dimension_scores:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/DimensionScore'
+        repository:
+          $ref: '#/components/schemas/RepositorySummary'
+
+    DimensionScore:
+      type: object
+      properties:
+        score:
+          type: number
+          format: float
+        rank:
+          type: integer
+        percentile:
+          type: number
+          format: float
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authenticated requests (future)
+
+security: []

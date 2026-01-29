@@ -31,7 +31,29 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify compliance with all core principles from `.specify/memory/constitution.md`:
+
+- [ ] **Evidence-Based Design**: All technical choices backed by research/citations
+- [ ] **Measurable Quality**: Success criteria are quantifiable and testable
+- [ ] **Tool-First Mindset**: Libraries before CLI, text-based I/O
+- [ ] **Test-Driven Development**: Tests written first (red-green-refactor)
+- [ ] **Structured Output**: Both JSON and human-readable formats supported
+- [ ] **Incremental Delivery**: Features broken into independently deliverable user stories (P1=P2=P3+)
+- [ ] **Documentation as Code**: README, CLAUDE.md, ADRs, inline docstrings
+
+**Technology Standards Compliance**:
+- [ ] Language version aligns with constitution (Python 3.11+, or equivalent for other languages)
+- [ ] Dependency management follows standards (uv preferred, virtual environments mandatory)
+- [ ] Complexity limits respected (file size <300 lines, function <100 lines, cyclomatic <25)
+
+**Quality Gates** (must pass before implementation):
+- [ ] Constitution Check: ✓ (this section)
+- [ ] Linting: Configured (black, isort, ruff for Python; equivalent for other languages)
+- [ ] Tests: Framework selected, >80% coverage target set
+- [ ] Security: Secret scanning, vulnerability scanning configured
+- [ ] Documentation: Structure defined (README, quickstart, examples)
+
+**Violations**: If any principle cannot be followed, document in Complexity Tracking section below with justification.
 
 ## Project Structure
 

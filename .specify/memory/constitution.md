@@ -2,18 +2,16 @@
 
 <!--
 SYNC IMPACT REPORT:
-Version: 0.0.0 → 1.0.0 (Initial constitution creation)
-Rationale: MINOR version - New constitution created from template
+Version: 1.0.0 → 1.0.1 (Template consistency improvement)
+Rationale: PATCH version - Improved plan-template.md constitution check section for clarity
 
 CHANGES:
-- Initial constitution ratification
-- 7 core principles established: Evidence-Based Design, Measurable Quality, Tool-First Mindset,
-  Test-Driven Development, Structured Output, Incremental Delivery, Documentation as Code
-- Development workflow and quality gates defined
-- Governance procedures established
+- Enhanced plan-template.md Constitution Check section with specific gate checklist
+- No changes to core principles or governance procedures
+- Improved template alignment for better constitution compliance verification
 
 TEMPLATE CONSISTENCY STATUS:
-- ✅ plan-template.md - Constitution check placeholder aligns with new principles
+- ✅ plan-template.md - Constitution check section now includes specific gate checklist
 - ✅ spec-template.md - Requirements structure supports measurable criteria
 - ✅ tasks-template.md - Task categorization supports TDD and incremental delivery
 - ✅ All command files - Generic guidance compatible with principles
@@ -171,4 +169,4 @@ that violates principles MUST be explicitly justified with trade-off analysis.
 Use `.specify/templates/agent-file-template.md` for agent-specific runtime guidance. This
 Constitution applies to all agents and developers working on agentready.
 
-**Version**: 1.0.0 | **Ratified**: 2025-11-20 | **Last Amended**: 2025-11-20
+**Version**: 1.0.1 | **Ratified**: 2025-11-20 | **Last Amended**: 2026-01-27
