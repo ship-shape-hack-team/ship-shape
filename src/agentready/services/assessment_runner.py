@@ -19,6 +19,7 @@ from ..assessors.quality import (
     EcosystemToolsAssessor,
     IntegrationTestsAssessor,
     TestCoverageAssessor,
+    UnitTestNamingAssessor,
 )
 from ..models.assessment import Assessment
 from ..models.assessor_result import AssessorResult
@@ -39,6 +40,7 @@ class AssessmentRunner:
             DocumentationStandardsAssessor(),
             EcosystemToolsAssessor(),
             APIDocumentationAssessor(),
+            UnitTestNamingAssessor(),
         ]
         self.scorer = QualityScorerService()
         self.store = AssessmentStore()
