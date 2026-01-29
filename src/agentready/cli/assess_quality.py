@@ -10,10 +10,16 @@ import click
 
 from ..assessors.quality import (
     APIDocumentationAssessor,
+    ContractTestingAssessor,
     DocumentationStandardsAssessor,
     EcosystemToolsAssessor,
+    IntegrationDatabaseSetupAssessor,
     IntegrationTestsAssessor,
+    IntegrationTestStructureAssessor,
+    MutationTestingAssessor,
     TestCoverageAssessor,
+    TestFixturesAssessor,
+    TestPerformanceBenchmarksAssessor,
     UnitTestNamingAssessor,
 )
 from ..models.assessment import Assessment
@@ -94,6 +100,12 @@ def assess_quality(repo_path: str, format: str, output: Optional[str], assessors
             "ecosystem_tools": EcosystemToolsAssessor(),
             "api_documentation": APIDocumentationAssessor(),
             "unit_test_naming": UnitTestNamingAssessor(),
+            "integration_test_structure": IntegrationTestStructureAssessor(),
+            "test_fixtures": TestFixturesAssessor(),
+            "integration_db_setup": IntegrationDatabaseSetupAssessor(),
+            "test_performance_benchmarks": TestPerformanceBenchmarksAssessor(),
+            "contract_testing": ContractTestingAssessor(),
+            "mutation_testing": MutationTestingAssessor(),
         }
 
         # Filter assessors if specified

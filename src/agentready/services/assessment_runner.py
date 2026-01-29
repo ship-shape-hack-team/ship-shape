@@ -15,10 +15,16 @@ from typing import List, Optional
 
 from ..assessors.quality import (
     APIDocumentationAssessor,
+    ContractTestingAssessor,
     DocumentationStandardsAssessor,
     EcosystemToolsAssessor,
+    IntegrationDatabaseSetupAssessor,
     IntegrationTestsAssessor,
+    IntegrationTestStructureAssessor,
+    MutationTestingAssessor,
     TestCoverageAssessor,
+    TestFixturesAssessor,
+    TestPerformanceBenchmarksAssessor,
     UnitTestNamingAssessor,
 )
 from ..models.assessment import Assessment
@@ -41,6 +47,12 @@ class AssessmentRunner:
             EcosystemToolsAssessor(),
             APIDocumentationAssessor(),
             UnitTestNamingAssessor(),
+            IntegrationTestStructureAssessor(),
+            TestFixturesAssessor(),
+            IntegrationDatabaseSetupAssessor(),
+            TestPerformanceBenchmarksAssessor(),
+            ContractTestingAssessor(),
+            MutationTestingAssessor(),
         ]
         self.scorer = QualityScorerService()
         self.store = AssessmentStore()
