@@ -114,6 +114,14 @@ class AssessmentRunner:
                 self._update_assessment_status(assessment_id, "failed")
                 return None
 
+            # Detect primary language from cloned repo if not provided
+            if not primary_language:
+                primary_language = self._detect_primary_language(temp_dir)
+                if primary_language:
+                    print(f"  Detected language: {primary_language}")
+                    # Update repository with detected language
+                    self._update_repository_language(repo_url, primary_language)
+
             # Create Repository model for assessors
             repo = Repository(
                 path=temp_dir,
@@ -287,5 +295,83 @@ class AssessmentRunner:
                     "assessment_id": assessment_id,
                     "last_assessed": datetime.utcnow(),
                     "repo_url": repo_url,
+                },
+            )
+
+    def _detect_primary_language(self, repo_path: Path) -> Optional[str]:
+        """Detect primary programming language from file extensions.
+
+        Args:
+            repo_path: Path to cloned repository
+
+        Returns:
+            Primary language name or None
+        """
+        language_extensions = {
+            ".py": "Python",
+            ".js": "JavaScript",
+            ".ts": "TypeScript",
+            ".tsx": "TypeScript",
+            ".jsx": "JavaScript",
+            ".java": "Java",
+            ".go": "Go",
+            ".rs": "Rust",
+            ".rb": "Ruby",
+            ".php": "PHP",
+            ".swift": "Swift",
+            ".kt": "Kotlin",
+            ".cpp": "C++",
+            ".c": "C",
+            ".cs": "C#",
+        }
+
+        # Directories to skip
+        skip_dirs = {
+            '.git', 'node_modules', '.venv', 'venv', '__pycache__',
+            'vendor', 'target', 'build', 'dist', '.gradle', 'bin', 'obj'
+        }
+
+        # Count files by extension
+        extension_counts = {}
+
+        import os
+        for root, dirs, files in os.walk(repo_path):
+            # Skip non-source directories
+            dirs[:] = [d for d in dirs if d not in skip_dirs]
+            
+            for file in files:
+                ext = os.path.splitext(file)[1].lower()
+                if ext in language_extensions:
+                    lang = language_extensions[ext]
+                    extension_counts[lang] = extension_counts.get(lang, 0) + 1
+
+        if not extension_counts:
+            return None
+
+        # Return language with most files
+        return max(extension_counts, key=extension_counts.get)
+
+    def _update_repository_language(self, repo_url: str, primary_language: str):
+        """Update repository's primary language in database.
+
+        Args:
+            repo_url: Repository URL
+            primary_language: Detected primary language
+        """
+        from ..storage.connection import get_db_session
+
+        with get_db_session(self.store.database_url) as session:
+            query = text(
+                """
+                UPDATE repositories
+                SET primary_language = :language
+                WHERE repo_url = :repo_url
+                """
+            )
+            session.execute(
+                query,
+                {
+                    "repo_url": repo_url,
+                    "language": primary_language,
                 },
             )

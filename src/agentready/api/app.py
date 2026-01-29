@@ -57,16 +57,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Configure CORS for frontend integration
+    # Configure CORS for frontend integration (allow all origins in dev)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",  # Vite dev server
-            "http://localhost:3000",  # Alternative frontend port
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000",
-        ],
-        allow_credentials=True,
+        allow_origins=["*"],  # Allow all origins for development
+        allow_credentials=False,  # Must be False when using wildcard origins
         allow_methods=["*"],  # Allow all HTTP methods
         allow_headers=["*"],  # Allow all headers
     )
@@ -77,7 +72,7 @@ def create_app() -> FastAPI:
     # Register API routes
     from .routes import assessments, benchmarks, export, health, repositories
 
-    app.include_router(health.router, tags=["health"])
+    app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(repositories.router, prefix="/api/v1", tags=["repositories"])
     app.include_router(assessments.router, prefix="/api/v1", tags=["assessments"])
     app.include_router(benchmarks.router, prefix="/api/v1", tags=["benchmarks"])

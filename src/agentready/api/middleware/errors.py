@@ -78,12 +78,13 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
 
         except StorageError as e:
             logger.error(f"Storage error: {e}")
+            logger.error(traceback.format_exc())
             return JSONResponse(
                 status_code=500,
                 content={
                     "error": "Internal Server Error",
                     "message": "Database operation failed",
-                    "details": str(e) if logger.level == logging.DEBUG else None,
+                    "details": str(e),  # Always show details for debugging
                 },
             )
 

@@ -98,12 +98,17 @@ async def get_assessment(
                             except (ValueError, SyntaxError):
                                 metrics_data = {"raw": metrics_str}
                     
+                    # Extract the actual pass/fail result from metrics
+                    # metrics.status contains: "pass", "fail", "not_applicable", "error"
+                    finding_status = metrics_data.get("status", "unknown")
+                    
                     assessor_results.append({
                         "id": row[0],
                         "assessor_name": row[1],
                         "score": row[2],
                         "metrics": metrics_data,
-                        "status": row[4],
+                        "execution_status": row[4],  # "success", "failed", "skipped" - did code run?
+                        "result": finding_status,     # "pass", "fail", etc. - did repo pass the check?
                         "executed_at": row[5],
                     })
                 

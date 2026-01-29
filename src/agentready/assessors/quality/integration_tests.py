@@ -100,50 +100,156 @@ class IntegrationTestsAssessor(BaseAssessor):
             )
 
     def _count_integration_tests(self, repo_path: Path) -> int:
-        """Count integration test files."""
+        """Count integration test files across all languages.
+        
+        Uses the same flexible detection as test_coverage assessor - 
+        looks for 'integration' keyword in path/filename plus specific patterns.
+        """
+        import os
+        
         count = 0
-
-        integration_patterns = [
-            "**/test_integration*.py",
-            "**/integration_test*.py",
-            "**/tests/integration/**/*.py",
-            "**/e2e/**/*.py",
-            "**/integration/**/*test*.py",
+        seen_files = set()
+        
+        # Source/test file extensions
+        test_extensions = {
+            '.py', '.js', '.ts', '.jsx', '.tsx', '.go', '.java', '.kt',
+            '.rs', '.rb', '.cs', '.php', '.swift'
+        }
+        
+        # Integration test indicators (substring match in path or filename)
+        integration_indicators = [
+            'integration', 'integ_test', 'test_integration', 'integrationtest',
         ]
-
-        for pattern in integration_patterns:
-            count += len(list(repo_path.glob(pattern)))
-
+        
+        # E2E test indicators (also count as integration-level tests)
+        e2e_indicators = [
+            'e2e', 'cypress', 'playwright', 'selenium', 'end-to-end', 
+            'e2e-tests', 'e2e_tests', 'endtoend'
+        ]
+        
+        # Directories to skip
+        skip_dirs = {
+            '.git', 'node_modules', '.venv', 'venv', '__pycache__',
+            'vendor', 'target', 'build', 'dist', '.gradle', 'bin', 'obj',
+            '.tox', '.pytest_cache', '.mypy_cache', 'coverage'
+        }
+        
+        for root, dirs, files in os.walk(repo_path):
+            # Skip non-source directories
+            dirs[:] = [d for d in dirs if d not in skip_dirs]
+            
+            root_lower = root.lower()
+            
+            for file in files:
+                file_ext = os.path.splitext(file)[1]
+                
+                if file_ext in test_extensions:
+                    file_lower = file.lower()
+                    full_path = os.path.join(root, file)
+                    
+                    # Check if it's an integration test
+                    is_integration = any(
+                        indicator in file_lower or indicator in root_lower
+                        for indicator in integration_indicators
+                    )
+                    
+                    # Check if it's an E2E test (counts as integration)
+                    is_e2e = any(
+                        indicator in file_lower or indicator in root_lower
+                        for indicator in e2e_indicators
+                    )
+                    
+                    if (is_integration or is_e2e) and full_path not in seen_files:
+                        seen_files.add(full_path)
+                        count += 1
+        
         return count
 
     def _check_test_containers(self, repo_path: Path) -> bool:
-        """Check for Testcontainers or similar."""
-        indicators = [
+        """Check for Testcontainers or similar across languages."""
+        # File name indicators
+        file_indicators = [
             "testcontainers",
             "docker-compose.test",
+            "docker-compose.integration",
+            "docker-compose.e2e",
             "test-compose",
+            "compose.test",
+            "compose.integration",
         ]
 
         for file in repo_path.rglob("*"):
             if file.is_file():
                 content = file.name.lower()
-                if any(ind in content for ind in indicators):
+                if any(ind in content for ind in file_indicators):
                     return True
+
+        # Check dependency files for testcontainers libraries
+        dep_files = [
+            ("requirements*.txt", ["testcontainers"]),
+            ("pyproject.toml", ["testcontainers"]),
+            ("package.json", ["testcontainers", "@testcontainers"]),
+            ("pom.xml", ["testcontainers"]),
+            ("build.gradle", ["testcontainers"]),
+            ("build.gradle.kts", ["testcontainers"]),
+            ("go.mod", ["testcontainers"]),
+            ("Cargo.toml", ["testcontainers"]),
+            ("*.csproj", ["Testcontainers"]),
+            ("Gemfile", ["testcontainers"]),
+            ("composer.json", ["testcontainers"]),
+        ]
+
+        for pattern, keywords in dep_files:
+            for dep_file in repo_path.glob(f"**/{pattern}"):
+                try:
+                    content = dep_file.read_text(errors="ignore").lower()
+                    if any(kw.lower() in content for kw in keywords):
+                        return True
+                except Exception:
+                    continue
 
         return False
 
     def _check_database_tests(self, repo_path: Path) -> bool:
-        """Check for database integration tests."""
-        db_indicators = [
-            "test_db",
-            "test_database",
-            "db_test",
-            "database_test",
+        """Check for database integration tests across languages."""
+        # File name patterns indicating database tests
+        db_file_patterns = [
+            "test_db", "test_database", "db_test", "database_test",
+            "db.test", "database.test", "db.spec", "database.spec",
+            "repository.test", "repository.spec", "repo.test", "repo.spec",
+            "persistence.test", "persistence.spec",
+            "dao.test", "dao.spec", "dal.test", "dal.spec",
+            "model.test", "model.spec", "models.test", "models.spec",
+            "migration.test", "migrations.test",
+            "sqlite", "postgres", "mysql", "mongodb", "redis",
         ]
 
-        for file in repo_path.rglob("*.py"):
-            file_content = file.name.lower()
-            if any(ind in file_content for ind in db_indicators):
+        # Check multiple file extensions
+        test_extensions = [
+            "*.py", "*.js", "*.ts", "*.jsx", "*.tsx", 
+            "*.go", "*.java", "*.kt", "*.cs", "*.rb", "*.php", "*.rs"
+        ]
+        
+        for ext in test_extensions:
+            for file in repo_path.rglob(ext):
+                file_lower = file.name.lower()
+                if any(ind in file_lower for ind in db_file_patterns):
+                    return True
+
+        # Also check for test fixtures directory with db-related content
+        fixture_patterns = [
+            "**/fixtures/**/*db*",
+            "**/fixtures/**/*database*",
+            "**/fixtures/**/*.sql",
+            "**/test/fixtures/**/*.sql",
+            "**/tests/fixtures/**/*.sql",
+            "**/__fixtures__/**/*.sql",
+            "**/seeds/**/*.sql",
+            "**/migrations/**/test*.sql",
+        ]
+        
+        for pattern in fixture_patterns:
+            if list(repo_path.glob(pattern)):
                 return True
 
         return False

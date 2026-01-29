@@ -35,8 +35,11 @@ export interface AssessorResult {
   assessor_name: string;
   score: number;
   metrics: Record<string, any>;
-  status: 'success' | 'failed' | 'skipped';
+  execution_status: 'success' | 'failed' | 'skipped';  // Did the assessor code run?
+  result: 'pass' | 'fail' | 'not_applicable' | 'error' | 'unknown';  // Did repo pass the check?
   executed_at: string;
+  // Backwards compatibility - some responses may still have 'status'
+  status?: 'success' | 'failed' | 'skipped';
 }
 
 export interface AssessmentDetailed extends Assessment {

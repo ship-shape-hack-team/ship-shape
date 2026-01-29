@@ -53,7 +53,8 @@ function formatKey(key: string): string {
 }
 
 export const DrillDownView: React.FC<DrillDownViewProps> = ({ assessorResult }) => {
-  const color = getScoreColor(assessorResult.score);
+  const score = assessorResult.score ?? 0;
+  const color = getScoreColor(score);
 
   return (
     <Card>
@@ -61,16 +62,25 @@ export const DrillDownView: React.FC<DrillDownViewProps> = ({ assessorResult }) 
       <CardBody>
         <div style={{ marginBottom: '1rem' }}>
           <span style={{ fontSize: '2rem', fontWeight: 'bold', color }}>
-            {assessorResult.score.toFixed(1)}
+            {score.toFixed(1)}
           </span>
           <span style={{ fontSize: '1.2rem', color: '#666' }}>/100</span>
         </div>
 
         <DescriptionList isHorizontal>
           <DescriptionListGroup>
-            <DescriptionListTerm style={{ color: '#151515' }}>Status</DescriptionListTerm>
-            <DescriptionListDescription style={{ color: '#151515' }}>
-              {assessorResult.status.toUpperCase()}
+            <DescriptionListTerm style={{ color: '#151515' }}>Result</DescriptionListTerm>
+            <DescriptionListDescription>
+              <span style={{ 
+                color: assessorResult.result === 'pass' ? '#3e8635' : 
+                       assessorResult.result === 'fail' ? '#c9190b' : '#6a6e73',
+                fontWeight: 'bold'
+              }}>
+                {assessorResult.result === 'pass' ? '✅ PASS' : 
+                 assessorResult.result === 'fail' ? '❌ FAIL' : 
+                 assessorResult.result === 'not_applicable' ? '⏭️ N/A' :
+                 assessorResult.result?.toUpperCase() || 'UNKNOWN'}
+              </span>
             </DescriptionListDescription>
           </DescriptionListGroup>
 
@@ -81,14 +91,17 @@ export const DrillDownView: React.FC<DrillDownViewProps> = ({ assessorResult }) 
             </DescriptionListDescription>
           </DescriptionListGroup>
 
-          {assessorResult.metrics.evidence && (
+          {assessorResult.metrics?.evidence && (
             <DescriptionListGroup>
               <DescriptionListTerm style={{ color: '#151515' }}>Evidence</DescriptionListTerm>
               <DescriptionListDescription>
                 <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#151515' }}>
-                  {assessorResult.metrics.evidence.split('|').map((item: string, idx: number) => (
+                  {(Array.isArray(assessorResult.metrics.evidence) 
+                    ? assessorResult.metrics.evidence 
+                    : String(assessorResult.metrics.evidence).split('|')
+                  ).map((item: string, idx: number) => (
                     <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                      {item.trim()}
+                      {String(item).trim()}
                     </li>
                   ))}
                 </ul>
