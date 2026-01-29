@@ -1,12 +1,14 @@
 """Repository management API routes."""
 
+import asyncio
 from typing import Optional
 from urllib.parse import unquote
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
 
 from ...models.repository_record import RepositoryRecord
+from ...services.assessment_runner import AssessmentRunner
 from ...services.repository_service import RepositoryService
 from ...storage.assessment_store import AssessmentStore
 
@@ -97,11 +99,12 @@ async def list_repositories(
 
 
 @router.post("/repositories", status_code=201)
-async def create_repository(request: CreateRepositoryRequest):
+async def create_repository(request: CreateRepositoryRequest, background_tasks: BackgroundTasks):
     """Add a new repository.
 
     Args:
         request: Repository creation request
+        background_tasks: FastAPI background tasks
 
     Returns:
         Created repository
@@ -119,6 +122,16 @@ async def create_repository(request: CreateRepositoryRequest):
         description=repo_record.description,
         primary_language=repo_record.primary_language,
     )
+
+    # Trigger assessment in background if requested
+    if request.trigger_assessment:
+        runner = AssessmentRunner()
+        background_tasks.add_task(
+            runner.run_assessment,
+            repo_record.repo_url,
+            repo_record.name,
+            repo_record.primary_language,
+        )
 
     return repo_record.to_dict()
 

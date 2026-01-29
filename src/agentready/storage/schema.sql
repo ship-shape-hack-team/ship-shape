@@ -9,8 +9,10 @@ CREATE TABLE IF NOT EXISTS repositories (
     description TEXT,
     primary_language TEXT,
     last_assessed DATETIME,
+    latest_assessment_id TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (latest_assessment_id) REFERENCES assessments(id) ON DELETE SET NULL
 );
 
 -- Assessments table

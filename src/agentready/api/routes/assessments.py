@@ -84,11 +84,25 @@ async def get_assessment(
                 
                 assessor_results = []
                 for row in results_rows:
+                    # Try to parse metrics as JSON, fallback to eval for old Python dict format
+                    metrics_str = row[3]
+                    metrics_data = {}
+                    if metrics_str:
+                        try:
+                            metrics_data = json.loads(metrics_str)
+                        except json.JSONDecodeError:
+                            # Handle old Python dict string format
+                            try:
+                                import ast
+                                metrics_data = ast.literal_eval(metrics_str)
+                            except (ValueError, SyntaxError):
+                                metrics_data = {"raw": metrics_str}
+                    
                     assessor_results.append({
                         "id": row[0],
                         "assessor_name": row[1],
                         "score": row[2],
-                        "metrics": json.loads(row[3]) if row[3] else {},
+                        "metrics": metrics_data,
                         "status": row[4],
                         "executed_at": row[5],
                     })
