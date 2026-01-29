@@ -107,9 +107,8 @@ class ApiClient {
   }
 
   async getRepositoryAssessments(repo_url: string, limit: number = 10) {
-    const encoded = encodeURIComponent(repo_url);
-    const response = await this.client.get(`/repositories/${encoded}/assessments`, {
-      params: { limit },
+    const response = await this.client.get('/repository/assessments', {
+      params: { repo_url, limit },
     });
     return response.data;
   }

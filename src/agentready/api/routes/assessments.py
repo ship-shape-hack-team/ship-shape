@@ -161,27 +161,24 @@ async def cancel_assessment(assessment_id: str):
     return {"message": "Assessment cancelled"}
 
 
-@router.get("/repositories/{repo_url_encoded}/assessments")
+@router.get("/repository/assessments")
 async def get_repository_assessments(
-    repo_url_encoded: str,
+    repo_url: str = Query(..., description="Repository URL"),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    """Get assessment history for a repository.
+    """Get assessment history for a repository using query parameter.
 
     Args:
-        repo_url_encoded: URL-encoded repository URL
+        repo_url: Repository URL (query parameter)
         limit: Maximum assessments to return
         offset: Number to skip
 
     Returns:
         Assessment history with IDs for fetching details
     """
-    from urllib.parse import unquote
     from ...storage.connection import get_db_session
     from sqlalchemy import text
-
-    repo_url = unquote(repo_url_encoded)
     
     try:
         with get_db_session() as session:

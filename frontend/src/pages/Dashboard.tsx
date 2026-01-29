@@ -19,6 +19,7 @@ import apiClient from '../services/api';
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
+  const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +41,19 @@ export const Dashboard: React.FC = () => {
 
       setRepositories(data.repositories || []);
       
+      // Load historical data for each repository
+      const historical: Record<string, any[]> = {};
+      for (const repo of data.repositories || []) {
+        try {
+          const history = await apiClient.getRepositoryAssessments(repo.repo_url, 50);
+          historical[repo.repo_url] = history.assessments || [];
+        } catch (err) {
+          console.error(`Failed to load history for ${repo.name}:`, err);
+          historical[repo.repo_url] = [];
+        }
+      }
+      setHistoricalData(historical);
+      
       // If no repositories in database, show helpful message
       if (data.repositories.length === 0) {
         setError('No repositories assessed yet. Run: agentready assess-quality /path/to/repo');
@@ -48,6 +62,7 @@ export const Dashboard: React.FC = () => {
       console.error('Failed to load repositories:', err);
       setError('API server not running. Start it with: uvicorn agentready.api.app:app --reload --port 8000');
       setRepositories([]);
+      setHistoricalData({});
     } finally {
       setIsLoading(false);
     }
@@ -100,6 +115,8 @@ export const Dashboard: React.FC = () => {
           <RepositoryTable
             repositories={repositories}
             onRowClick={handleRowClick}
+            onTrendClick={() => {}}
+            historicalData={historicalData}
             isLoading={isLoading}
           />
         )}
