@@ -9,6 +9,7 @@ from typing import Optional
 import click
 
 from ..assessors.quality import (
+    APIDocumentationAssessor,
     DocumentationStandardsAssessor,
     EcosystemToolsAssessor,
     IntegrationTestsAssessor,
@@ -90,6 +91,7 @@ def assess_quality(repo_path: str, format: str, output: Optional[str], assessors
             "integration_tests": IntegrationTestsAssessor(),
             "documentation_standards": DocumentationStandardsAssessor(),
             "ecosystem_tools": EcosystemToolsAssessor(),
+            "api_documentation": APIDocumentationAssessor(),
         }
 
         # Filter assessors if specified
