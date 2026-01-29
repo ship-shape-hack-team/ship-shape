@@ -22,6 +22,7 @@ export const Dashboard: React.FC = () => {
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reassessingRepos, setReassessingRepos] = useState<Set<string>>(new Set());
 
   // Load repositories on mount
   useEffect(() => {
@@ -84,6 +85,67 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const handleReassess = async (repo: RepositorySummary) => {
+    // Add to reassessing set
+    setReassessingRepos(prev => new Set(prev).add(repo.repo_url));
+    
+    try {
+      await apiClient.reassessRepository(repo.repo_url);
+      
+      // Poll for completion (simple approach - check every 5 seconds for 5 minutes)
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes
+      const pollInterval = 5000; // 5 seconds
+      
+      const pollForCompletion = setInterval(async () => {
+        attempts++;
+        
+        try {
+          // Reload repositories to get updated assessment
+          const data = await apiClient.listRepositories({
+            limit: 100,
+            sort_by: 'last_assessed',
+            order: 'desc',
+          });
+          
+          const updatedRepo = data.repositories.find((r: RepositorySummary) => r.repo_url === repo.repo_url);
+          
+          // Check if last_assessed has been updated (comparing dates)
+          if (updatedRepo && updatedRepo.last_assessed !== repo.last_assessed) {
+            clearInterval(pollForCompletion);
+            setReassessingRepos(prev => {
+              const next = new Set(prev);
+              next.delete(repo.repo_url);
+              return next;
+            });
+            await loadRepositories();
+          }
+          
+          if (attempts >= maxAttempts) {
+            clearInterval(pollForCompletion);
+            setReassessingRepos(prev => {
+              const next = new Set(prev);
+              next.delete(repo.repo_url);
+              return next;
+            });
+            console.log('Polling timeout - assessment may still be in progress');
+          }
+        } catch (err) {
+          console.error('Error polling for assessment completion:', err);
+        }
+      }, pollInterval);
+      
+    } catch (err) {
+      console.error('Failed to trigger reassessment:', err);
+      setReassessingRepos(prev => {
+        const next = new Set(prev);
+        next.delete(repo.repo_url);
+        return next;
+      });
+      alert('Failed to trigger reassessment. Please try again.');
+    }
+  };
+
   return (
     <>
       <PageSection variant="light">
@@ -116,8 +178,10 @@ export const Dashboard: React.FC = () => {
             repositories={repositories}
             onRowClick={handleRowClick}
             onTrendClick={() => {}}
+            onReassess={handleReassess}
             historicalData={historicalData}
             isLoading={isLoading}
+            reassessingRepos={reassessingRepos}
           />
         )}
       </PageSection>

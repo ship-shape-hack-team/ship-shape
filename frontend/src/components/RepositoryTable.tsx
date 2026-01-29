@@ -17,8 +17,10 @@ import {
   EmptyStateBody,
   Title,
   Label,
+  Button,
+  Spinner,
 } from '@patternfly/react-core';
-import { CubesIcon } from '@patternfly/react-icons';
+import { CubesIcon, RedoIcon } from '@patternfly/react-icons';
 import { RepositorySummary } from '../types';
 import { getScoreColor, getPerformanceTier } from '../types';
 import { TrendIcon } from './TrendIcon';
@@ -28,22 +30,31 @@ interface RepositoryTableProps {
   repositories: RepositorySummary[];
   onRowClick: (repo: RepositorySummary) => void;
   onTrendClick: (repo: RepositorySummary) => void;
+  onReassess: (repo: RepositorySummary) => void;
   historicalData: Record<string, any[]>;
   isLoading?: boolean;
+  reassessingRepos?: Set<string>;
 }
 
 export const RepositoryTable: React.FC<RepositoryTableProps> = ({
   repositories,
   onRowClick,
   onTrendClick,
+  onReassess,
   historicalData,
   isLoading = false,
+  reassessingRepos = new Set(),
 }) => {
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
 
   const handleTrendClick = (repo: RepositorySummary) => (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
     setSelectedRepo(repo.repo_url);
+  };
+
+  const handleReassessClick = (repo: RepositorySummary) => (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    onReassess(repo);
   };
 
   const handleCloseModal = () => {
@@ -87,6 +98,7 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
             <Th>Tier</Th>
             <Th>6-Month Trend</Th>
             <Th>Last Assessed</Th>
+            <Th modifier="fitContent">Actions</Th>
           </Tr>
         </Thead>
       <Tbody>
@@ -131,6 +143,17 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
                 {repo.last_assessed
                   ? new Date(repo.last_assessed).toLocaleDateString()
                   : 'Never'}
+              </Td>
+              <Td dataLabel="Actions" modifier="fitContent">
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={handleReassessClick(repo)}
+                  isDisabled={reassessingRepos.has(repo.repo_url)}
+                  aria-label={`Reassess ${repo.name}`}
+                  icon={reassessingRepos.has(repo.repo_url) ? <Spinner size="sm" /> : <RedoIcon />}
+                  isInline
+                />
               </Td>
             </Tr>
           );
