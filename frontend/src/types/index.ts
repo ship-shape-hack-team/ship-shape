@@ -19,6 +19,7 @@ export interface RepositorySummary {
   last_assessed?: string | null;
   overall_score?: number | null;
   latest_assessment_id?: string | null;
+  assessment_status?: AssessmentStatus | null;
 }
 
 export interface Assessment {
@@ -81,4 +82,44 @@ export function getPerformanceTier(score: number): string {
   if (score >= 75) return 'High';
   if (score >= 60) return 'Medium';
   return 'Low';
+}
+
+export function getStatusBadgeColor(status?: AssessmentStatus | null): 'grey' | 'blue' | 'green' | 'red' | 'orange' {
+  if (!status) return 'grey';
+  switch (status) {
+    case 'pending':
+      return 'grey';
+    case 'running':
+      return 'blue';
+    case 'completed':
+      return 'green';
+    case 'failed':
+      return 'red';
+    case 'cancelled':
+      return 'orange';
+    default:
+      return 'grey';
+  }
+}
+
+export function getStatusLabel(status?: AssessmentStatus | null, hasAssessmentId?: boolean): string {
+  // If no status but also no assessment ID, it means the repo was just added
+  if (!status && !hasAssessmentId) {
+    return 'Pending';
+  }
+  if (!status) return 'Unknown';
+  switch (status) {
+    case 'pending':
+      return 'Pending';
+    case 'running':
+      return 'Analyzing';
+    case 'completed':
+      return 'Completed';
+    case 'failed':
+      return 'Failed';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return 'Unknown';
+  }
 }

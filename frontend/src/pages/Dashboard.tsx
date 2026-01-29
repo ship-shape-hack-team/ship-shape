@@ -2,7 +2,7 @@
  * Dashboard page - main landing page with repository input and table
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   PageSection,
   Title,
@@ -15,36 +15,25 @@ import { RepositoryTable } from '../components/RepositoryTable';
 import { EmptyState } from '../components/EmptyState';
 import { RepositorySummary } from '../types';
 import apiClient from '../services/api';
+import { usePollRepositories } from '../hooks/usePollRepositories';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
+
+  // Use polling hook for automatic updates
+  const { repositories, isLoading, error, refresh, hasInProgressAssessments } = usePollRepositories({
+    pollingInterval: 3000, // Poll every 3 seconds
+    enabled: true,
+  });
+
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [reassessingRepos, setReassessingRepos] = useState<Set<string>>(new Set());
 
-  // Load repositories on mount
+  // Load historical data when repositories change
   useEffect(() => {
-    loadRepositories();
-  }, []);
-
-  const loadRepositories = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await apiClient.listRepositories({
-        limit: 100,
-        sort_by: 'last_assessed',
-        order: 'desc',
-      });
-
-      setRepositories(data.repositories || []);
-      
-      // Load historical data for each repository
+    const loadHistoricalData = async () => {
       const historical: Record<string, any[]> = {};
-      for (const repo of data.repositories || []) {
+      for (const repo of repositories) {
         try {
           const history = await apiClient.getRepositoryAssessments(repo.repo_url, 50);
           historical[repo.repo_url] = history.assessments || [];
@@ -54,26 +43,18 @@ export const Dashboard: React.FC = () => {
         }
       }
       setHistoricalData(historical);
-      
-      // If no repositories in database, show helpful message
-      if (data.repositories.length === 0) {
-        setError('No repositories assessed yet. Run: agentready assess-quality /path/to/repo');
-      }
-    } catch (err) {
-      console.error('Failed to load repositories:', err);
-      setError('API server not running. Start it with: uvicorn agentready.api.app:app --reload --port 8000');
-      setRepositories([]);
-      setHistoricalData({});
-    } finally {
-      setIsLoading(false);
+    };
+
+    if (repositories.length > 0) {
+      loadHistoricalData();
     }
-  };
+  }, [repositories]);
 
   const handleAddRepository = async (repoUrl: string) => {
     await apiClient.createRepository(repoUrl, true);
-    
-    // Reload repositories
-    await loadRepositories();
+
+    // Refresh repositories immediately
+    await refresh();
   };
 
   const handleRowClick = (repo: RepositorySummary) => {
@@ -102,24 +83,7 @@ export const Dashboard: React.FC = () => {
         
         try {
           // Reload repositories to get updated assessment
-          const data = await apiClient.listRepositories({
-            limit: 100,
-            sort_by: 'last_assessed',
-            order: 'desc',
-          });
-          
-          const updatedRepo = data.repositories.find((r: RepositorySummary) => r.repo_url === repo.repo_url);
-          
-          // Check if last_assessed has been updated (comparing dates)
-          if (updatedRepo && updatedRepo.last_assessed !== repo.last_assessed) {
-            clearInterval(pollForCompletion);
-            setReassessingRepos(prev => {
-              const next = new Set(prev);
-              next.delete(repo.repo_url);
-              return next;
-            });
-            await loadRepositories();
-          }
+          await refresh();
           
           if (attempts >= maxAttempts) {
             clearInterval(pollForCompletion);
@@ -134,6 +98,15 @@ export const Dashboard: React.FC = () => {
           console.error('Error polling for assessment completion:', err);
         }
       }, pollInterval);
+      
+      // Stop reassessing indicator after 30 seconds regardless
+      setTimeout(() => {
+        setReassessingRepos(prev => {
+          const next = new Set(prev);
+          next.delete(repo.repo_url);
+          return next;
+        });
+      }, 30000);
       
     } catch (err) {
       console.error('Failed to trigger reassessment:', err);
@@ -169,6 +142,17 @@ export const Dashboard: React.FC = () => {
           </Alert>
         )}
 
+        {hasInProgressAssessments && (
+          <Alert
+            variant={AlertVariant.info}
+            title="Assessments in Progress"
+            isInline
+            style={{ marginBottom: '1rem' }}
+          >
+            Some assessments are currently running. The table will automatically update when they complete.
+          </Alert>
+        )}
+
         <RepositoryInput onSubmit={handleAddRepository} />
 
         {repositories.length === 0 && !isLoading ? (
@@ -188,4 +172,3 @@ export const Dashboard: React.FC = () => {
     </>
   );
 };
-

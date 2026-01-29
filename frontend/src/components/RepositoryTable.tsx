@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 
-type SortColumn = 'name' | 'language' | 'score' | 'tier' | 'trend' | 'last_assessed';
+type SortColumn = 'name' | 'language' | 'status' | 'score' | 'tier' | 'trend' | 'last_assessed';
 type SortDirection = 'asc' | 'desc';
 import {
   Table,
@@ -23,9 +23,9 @@ import {
   Button,
   Spinner,
 } from '@patternfly/react-core';
-import { CubesIcon, RedoIcon } from '@patternfly/react-icons';
+import { CubesIcon, RedoIcon, InProgressIcon, CheckCircleIcon, ExclamationCircleIcon } from '@patternfly/react-icons';
 import { RepositorySummary } from '../types';
-import { getScoreColor, getPerformanceTier } from '../types';
+import { getScoreColor, getPerformanceTier, getStatusBadgeColor, getStatusLabel } from '../types';
 import { TrendIcon } from './TrendIcon';
 import { TrendModal } from './TrendModal';
 
@@ -96,6 +96,11 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
         aValue = a.primary_language || 'zzz';
         bValue = b.primary_language || 'zzz';
         break;
+      case 'status':
+        const statusOrder = { 'pending': 0, 'running': 1, 'completed': 2, 'failed': 3, 'cancelled': 4, 'Unknown': 5 };
+        aValue = statusOrder[getStatusLabel(a.assessment_status, !!a.latest_assessment_id) as keyof typeof statusOrder] || 5;
+        bValue = statusOrder[getStatusLabel(b.assessment_status, !!b.latest_assessment_id) as keyof typeof statusOrder] || 5;
+        break;
       case 'score':
         aValue = a.overall_score || 0;
         bValue = b.overall_score || 0;
@@ -160,6 +165,12 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
             <Th>Repository</Th>
             <Th>Language</Th>
             <Th 
+              onClick={() => handleSort('status')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Status{getSortIcon('status')}
+            </Th>
+            <Th 
               onClick={() => handleSort('score')}
               style={{ cursor: 'pointer', userSelect: 'none' }}
             >
@@ -186,75 +197,98 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
             <Th modifier="fitContent">Actions</Th>
           </Tr>
         </Thead>
-      <Tbody>
-        {sortedRepositories.map(repo => {
-          const score = repo.overall_score || 0;
-          const tier = getPerformanceTier(score);
-          const scoreColor = getScoreColor(score);
+        <Tbody>
+          {sortedRepositories.map(repo => {
+            const score = repo.overall_score || 0;
+            const tier = getPerformanceTier(score);
+            const scoreColor = getScoreColor(score);
+            const statusColor = getStatusBadgeColor(repo.assessment_status);
+            const statusLabel = getStatusLabel(repo.assessment_status, !!repo.latest_assessment_id);
+            const isInProgress = repo.assessment_status === 'pending' ||
+                                 repo.assessment_status === 'running' ||
+                                 (repo.assessment_status === null && !repo.latest_assessment_id);
 
-          return (
-            <Tr
-              key={repo.repo_url}
-              onClick={() => onRowClick(repo)}
-              style={{ cursor: 'pointer' }}
-            >
-              <Td dataLabel="Repository">
-                <strong style={{ color: '#151515' }}>{repo.name}</strong>
-                <div style={{ fontSize: '0.9em', color: '#6a6e73' }}>{repo.repo_url}</div>
-              </Td>
-              <Td dataLabel="Language">
-                <span style={{ color: '#151515' }}>{repo.primary_language || 'Unknown'}</span>
-              </Td>
-              <Td dataLabel="Overall Score">
-                <span style={{ fontSize: '1.2em', fontWeight: 'bold', color: scoreColor }}>
-                  {score.toFixed(1)}
-                </span>
-                <span style={{ color: '#6a6e73' }}>/100</span>
-              </Td>
-              <Td dataLabel="Tier">
-                <Label color={scoreColor as any}>{tier}</Label>
-              </Td>
-              <Td dataLabel="6-Month Trend">
-                {historicalData[repo.repo_url] && historicalData[repo.repo_url].length > 1 ? (
-                  <TrendIcon
-                    trend={calculateTrend(historicalData[repo.repo_url])}
-                    onClick={handleTrendClick(repo)}
+            return (
+              <Tr
+                key={repo.repo_url}
+                onClick={() => onRowClick(repo)}
+                style={{ cursor: 'pointer' }}
+              >
+                <Td dataLabel="Repository">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {isInProgress && <Spinner size="md" />}
+                    <div>
+                      <strong style={{ color: '#151515' }}>{repo.name}</strong>
+                      <div style={{ fontSize: '0.9em', color: '#6a6e73' }}>{repo.repo_url}</div>
+                    </div>
+                  </div>
+                </Td>
+                <Td dataLabel="Language">
+                  <span style={{ color: '#151515' }}>{repo.primary_language || 'Unknown'}</span>
+                </Td>
+                <Td dataLabel="Status">
+                  <Label
+                    color={statusColor as any}
+                    icon={
+                      repo.assessment_status === 'running' ? <InProgressIcon /> :
+                      repo.assessment_status === 'completed' ? <CheckCircleIcon /> :
+                      repo.assessment_status === 'failed' ? <ExclamationCircleIcon /> :
+                      undefined
+                    }
+                  >
+                    {statusLabel}
+                  </Label>
+                </Td>
+                <Td dataLabel="Overall Score">
+                  <span style={{ fontSize: '1.2em', fontWeight: 'bold', color: scoreColor }}>
+                    {score.toFixed(1)}
+                  </span>
+                  <span style={{ color: '#6a6e73' }}>/100</span>
+                </Td>
+                <Td dataLabel="Tier">
+                  <Label color={scoreColor as any}>{tier}</Label>
+                </Td>
+                <Td dataLabel="6-Month Trend">
+                  {historicalData[repo.repo_url] && historicalData[repo.repo_url].length > 1 ? (
+                    <TrendIcon
+                      trend={calculateTrend(historicalData[repo.repo_url])}
+                      onClick={handleTrendClick(repo)}
+                    />
+                  ) : (
+                    <TrendIcon trend="no_data" onClick={handleTrendClick(repo)} />
+                  )}
+                </Td>
+                <Td dataLabel="Last Assessed">
+                  {repo.last_assessed
+                    ? new Date(repo.last_assessed).toLocaleDateString()
+                    : 'Never'}
+                </Td>
+                <Td dataLabel="Actions" modifier="fitContent">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={handleReassessClick(repo)}
+                    isDisabled={reassessingRepos.has(repo.repo_url)}
+                    aria-label={`Reassess ${repo.name}`}
+                    icon={reassessingRepos.has(repo.repo_url) ? <Spinner size="sm" /> : <RedoIcon />}
+                    isInline
                   />
-                ) : (
-                  <TrendIcon trend="no_data" onClick={handleTrendClick(repo)} />
-                )}
-              </Td>
-              <Td dataLabel="Last Assessed">
-                {repo.last_assessed
-                  ? new Date(repo.last_assessed).toLocaleDateString()
-                  : 'Never'}
-              </Td>
-              <Td dataLabel="Actions" modifier="fitContent">
-                <Button
-                  variant="link"
-                  size="sm"
-                  onClick={handleReassessClick(repo)}
-                  isDisabled={reassessingRepos.has(repo.repo_url)}
-                  aria-label={`Reassess ${repo.name}`}
-                  icon={reassessingRepos.has(repo.repo_url) ? <Spinner size="sm" /> : <RedoIcon />}
-                  isInline
-                />
-              </Td>
-            </Tr>
-          );
-        })}
-      </Tbody>
-    </Table>
+                </Td>
+              </Tr>
+            );
+          })}
+        </Tbody>
+      </Table>
 
-    {selectedRepo && selectedRepoData && (
-      <TrendModal
-        isOpen={true}
-        onClose={handleCloseModal}
-        repositoryName={selectedRepoData.name}
-        assessments={selectedHistory}
-      />
-    )}
-  </>
+      {selectedRepo && selectedRepoData && (
+        <TrendModal
+          isOpen={true}
+          onClose={handleCloseModal}
+          repositoryName={selectedRepoData.name}
+          assessments={selectedHistory}
+        />
+      )}
+    </>
   );
 };
 
