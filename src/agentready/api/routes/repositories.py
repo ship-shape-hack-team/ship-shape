@@ -109,31 +109,43 @@ async def create_repository(request: CreateRepositoryRequest, background_tasks: 
     Returns:
         Created repository
     """
-    repo_service = RepositoryService()
-    store = AssessmentStore()
+    import traceback
+    
+    try:
+        repo_service = RepositoryService()
+        store = AssessmentStore()
 
-    # Extract repository info
-    repo_record = repo_service.extract_repo_info(request.repo_url)
+        # Extract repository info
+        print(f"DEBUG: Extracting repo info for {request.repo_url}")
+        repo_record = repo_service.extract_repo_info(request.repo_url)
+        print(f"DEBUG: Got repo_record: {repo_record}")
 
-    # Store in database
-    store.create_repository(
-        repo_url=repo_record.repo_url,
-        name=repo_record.name,
-        description=repo_record.description,
-        primary_language=repo_record.primary_language,
-    )
-
-    # Trigger assessment in background if requested
-    if request.trigger_assessment:
-        runner = AssessmentRunner()
-        background_tasks.add_task(
-            runner.run_assessment,
-            repo_record.repo_url,
-            repo_record.name,
-            repo_record.primary_language,
+        # Store in database
+        print(f"DEBUG: Storing in database...")
+        store.create_repository(
+            repo_url=repo_record.repo_url,
+            name=repo_record.name,
+            description=repo_record.description,
+            primary_language=repo_record.primary_language,
         )
+        print(f"DEBUG: Stored successfully")
 
-    return repo_record.to_dict()
+        # Trigger assessment in background if requested
+        if request.trigger_assessment:
+            print(f"DEBUG: Triggering assessment...")
+            runner = AssessmentRunner()
+            background_tasks.add_task(
+                runner.run_assessment,
+                repo_record.repo_url,
+                repo_record.name,
+                repo_record.primary_language,
+            )
+
+        return repo_record.to_dict()
+    except Exception as e:
+        print(f"ERROR in create_repository: {e}")
+        print(traceback.format_exc())
+        raise
 
 
 @router.get("/repository")

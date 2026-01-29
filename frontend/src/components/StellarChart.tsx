@@ -20,14 +20,16 @@ export const StellarChart: React.FC<StellarChartProps> = ({
   const center = size / 2;
   const radius = size / 2 - 60;
 
-  // Prepare data points
-  const dataPoints = assessorResults.map((result, index) => {
-    const angle = (index / assessorResults.length) * 2 * Math.PI - Math.PI / 2;
-    const score = result.score / 100; // Normalize to 0-1
+  // Prepare data points (with null safety)
+  const results = assessorResults || [];
+  const dataPoints = results.map((result, index) => {
+    const angle = (index / (results.length || 1)) * 2 * Math.PI - Math.PI / 2;
+    const scoreValue = result.score ?? 0;
+    const score = scoreValue / 100; // Normalize to 0-1
 
     return {
       name: formatAssessorName(result.assessor_name),
-      score: result.score,
+      score: scoreValue,
       normalizedScore: score,
       angle: angle,
       x: center + Math.cos(angle) * radius * score,
@@ -74,7 +76,9 @@ export const StellarChart: React.FC<StellarChartProps> = ({
   ));
 
   // Determine fill color based on average score
-  const avgScore = dataPoints.reduce((sum, p) => sum + p.score, 0) / dataPoints.length;
+  const avgScore = dataPoints.length > 0 
+    ? dataPoints.reduce((sum, p) => sum + p.score, 0) / dataPoints.length 
+    : 0;
   const fillColor = avgScore >= 75 ? 'rgba(62, 134, 53, 0.3)' : 
                     avgScore >= 60 ? 'rgba(240, 171, 0, 0.3)' : 
                     'rgba(201, 25, 11, 0.3)';

@@ -22,10 +22,10 @@ export const RadarChart: React.FC<RadarChartProps> = ({
   assessorResults,
   repositoryName,
 }) => {
-  // Transform assessor results into chart data
-  const dimensions = assessorResults.map(result => ({
+  // Transform assessor results into chart data (with null safety)
+  const dimensions = (assessorResults || []).map(result => ({
     name: formatAssessorName(result.assessor_name),
-    score: result.score,
+    score: result.score ?? 0,
   }));
 
   // PatternFly Charts uses Victory, which doesn't have built-in radar
