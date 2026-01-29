@@ -88,6 +88,13 @@ class ApiClient {
     return response.data;
   }
 
+  async reassessRepository(repo_url: string) {
+    const response = await this.client.post('/repositories/reassess', null, {
+      params: { repo_url }
+    });
+    return response.data;
+  }
+
   // Assessments
   async createAssessment(repo_url: string, assessors?: string[]) {
     const response = await this.client.post('/assessments', {

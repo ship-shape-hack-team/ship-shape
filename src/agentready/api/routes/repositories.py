@@ -171,6 +171,53 @@ async def get_repository(repo_url: str = Query(..., description="Repository URL"
     return repo_data
 
 
+@router.post("/repositories/reassess", status_code=202)
+async def reassess_repository(
+    repo_url: str = Query(..., description="Repository URL to reassess"),
+    background_tasks: BackgroundTasks = None
+):
+    """Trigger a reassessment for an existing repository.
+
+    Args:
+        repo_url: Repository URL (query parameter)
+        background_tasks: FastAPI background tasks
+
+    Returns:
+        Assessment trigger confirmation
+    """
+    import traceback
+    
+    try:
+        store = AssessmentStore()
+        
+        # Get repository from database
+        repo_data = store.get_repository(repo_url)
+        
+        if not repo_data:
+            raise HTTPException(status_code=404, detail=f"Repository not found: {repo_url}")
+        
+        # Trigger assessment in background
+        runner = AssessmentRunner()
+        background_tasks.add_task(
+            runner.run_assessment,
+            repo_data.get("repo_url"),
+            repo_data.get("name", "Unknown"),
+            repo_data.get("primary_language", "Unknown"),
+        )
+        
+        return {
+            "message": "Assessment triggered",
+            "repo_url": repo_url,
+            "status": "queued"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR in reassess_repository: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to trigger reassessment: {str(e)}")
+
+
 @router.delete("/repositories/{repo_url_encoded}", status_code=204)
 async def delete_repository(repo_url_encoded: str):
     """Delete a repository.
