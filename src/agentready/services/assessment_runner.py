@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from ..assessors.quality import (
+    APIDocumentationAssessor,
     DocumentationStandardsAssessor,
     EcosystemToolsAssessor,
     IntegrationTestsAssessor,
@@ -37,6 +38,7 @@ class AssessmentRunner:
             IntegrationTestsAssessor(),
             DocumentationStandardsAssessor(),
             EcosystemToolsAssessor(),
+            APIDocumentationAssessor(),
         ]
         self.scorer = QualityScorerService()
         self.store = AssessmentStore()
