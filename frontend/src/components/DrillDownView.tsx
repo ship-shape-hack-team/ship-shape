@@ -73,9 +73,9 @@ export const DrillDownView: React.FC<DrillDownViewProps> = ({ assessorResult }) 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        padding: '1rem 1rem 0.5rem',
+        fontWeight: 600,
       }}>
-        <span style={{ fontSize: '0.95rem', fontWeight: 600 }}>
+        <span style={{ fontSize: '0.95rem' }}>
           {formatAssessorName(assessorResult.assessor_name)}
         </span>
         <span style={{ 

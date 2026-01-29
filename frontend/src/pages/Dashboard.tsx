@@ -8,6 +8,9 @@ import {
   Title,
   Alert,
   AlertVariant,
+  Card,
+  CardBody,
+  CardTitle,
 } from '@patternfly/react-core';
 import { useNavigate } from 'react-router-dom';
 import { RepositoryInput } from '../components/RepositoryInput';
@@ -28,6 +31,14 @@ export const Dashboard: React.FC = () => {
 
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
   const [reassessingRepos, setReassessingRepos] = useState<Set<string>>(new Set());
+
+  // Calculate stats
+  const totalRepos = repositories.length;
+  const avgScore = totalRepos > 0 
+    ? repositories.reduce((sum, r) => sum + (r.overall_score || 0), 0) / totalRepos 
+    : 0;
+  const passingRepos = repositories.filter(r => (r.overall_score || 0) >= 70).length;
+  const needsWorkRepos = repositories.filter(r => (r.overall_score || 0) < 70 && r.overall_score !== null).length;
 
   // Load historical data when repositories change
   useEffect(() => {
@@ -133,16 +144,22 @@ export const Dashboard: React.FC = () => {
 
   return (
     <>
-      <PageSection variant="light">
-        <Title headingLevel="h1" size="2xl" style={{ color: '#151515' }}>
-          Quality Profiling Dashboard
-        </Title>
-        <p style={{ marginTop: '0.5rem', color: '#6a6e73' }}>
-          Assess and compare repository quality across multiple dimensions
-        </p>
+      {/* Hero Header */}
+      <PageSection variant="light" style={{ paddingTop: '2rem', paddingBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <span style={{ fontSize: '2.5rem' }}>🚢</span>
+          <div>
+            <Title headingLevel="h1" size="2xl" style={{ color: '#C9190B', margin: 0, fontWeight: 700 }}>
+              Quality Profiling Dashboard
+            </Title>
+            <p style={{ marginTop: '0.5rem', color: '#6a6e73', marginBottom: 0 }}>
+              Assess and compare repository quality across multiple dimensions
+            </p>
+          </div>
+        </div>
       </PageSection>
 
-      <PageSection>
+      <PageSection style={{ paddingTop: '1.5rem' }}>
         {error && (
           <Alert
             variant={AlertVariant.warning}
@@ -165,21 +182,92 @@ export const Dashboard: React.FC = () => {
           </Alert>
         )}
 
-        <RepositoryInput onSubmit={handleAddRepository} />
+        {/* Stats Cards */}
+        {repositories.length > 0 && (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(4, 1fr)', 
+            gap: '1rem', 
+            marginBottom: '1.5rem' 
+          }}>
+            <Card style={{ textAlign: 'center', overflow: 'hidden' }}>
+              <CardBody style={{ padding: '1rem' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#0066CC' }}>
+                  {totalRepos}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#6a6e73', marginTop: '0.25rem' }}>
+                  📊 Total Repositories
+                </div>
+              </CardBody>
+            </Card>
+            <Card style={{ textAlign: 'center', overflow: 'hidden' }}>
+              <CardBody style={{ padding: '1rem' }}>
+                <div style={{ 
+                  fontSize: '2rem', 
+                  fontWeight: 'bold', 
+                  color: avgScore >= 70 ? '#3E8635' : avgScore >= 50 ? '#F0AB00' : '#C9190B' 
+                }}>
+                  {avgScore.toFixed(0)}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#6a6e73', marginTop: '0.25rem' }}>
+                  ⭐ Average Score
+                </div>
+              </CardBody>
+            </Card>
+            <Card style={{ textAlign: 'center', overflow: 'hidden' }}>
+              <CardBody style={{ padding: '1rem' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3E8635' }}>
+                  {passingRepos}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#6a6e73', marginTop: '0.25rem' }}>
+                  ✅ Passing (70+)
+                </div>
+              </CardBody>
+            </Card>
+            <Card style={{ textAlign: 'center', overflow: 'hidden' }}>
+              <CardBody style={{ padding: '1rem' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#C9190B' }}>
+                  {needsWorkRepos}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#6a6e73', marginTop: '0.25rem' }}>
+                  ⚠️ Needs Work
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+        )}
 
+        {/* Add Repository Card */}
+        <Card style={{ marginBottom: '1.5rem' }}>
+          <CardTitle style={{ color: '#151515', fontWeight: 600 }}>
+            ➕ Add Repository
+          </CardTitle>
+          <CardBody>
+            <RepositoryInput onSubmit={handleAddRepository} />
+          </CardBody>
+        </Card>
+
+        {/* Repository List */}
         {repositories.length === 0 && !isLoading ? (
           <EmptyState />
         ) : (
-          <RepositoryTable
-            repositories={repositories}
-            onRowClick={handleRowClick}
-            onTrendClick={() => {}}
-            onReassess={handleReassess}
-            onDelete={handleDelete}
-            historicalData={historicalData}
-            isLoading={isLoading}
-            reassessingRepos={reassessingRepos}
-          />
+          <Card>
+            <CardTitle style={{ color: '#151515', fontWeight: 600 }}>
+              📋 Repositories ({repositories.length})
+            </CardTitle>
+            <CardBody style={{ padding: 0 }}>
+              <RepositoryTable
+                repositories={repositories}
+                onRowClick={handleRowClick}
+                onTrendClick={() => {}}
+                onReassess={handleReassess}
+                onDelete={handleDelete}
+                historicalData={historicalData}
+                isLoading={isLoading}
+                reassessingRepos={reassessingRepos}
+              />
+            </CardBody>
+          </Card>
         )}
       </PageSection>
     </>

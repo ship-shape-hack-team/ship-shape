@@ -50,7 +50,7 @@ export const RepositoryInput: React.FC<RepositoryInputProps> = ({ onSubmit }) =>
   };
 
   return (
-    <div style={{ marginBottom: '2rem' }}>
+    <div>
       {error && (
         <Alert variant={AlertVariant.danger} title="Error" isInline style={{ marginBottom: '1rem' }}>
           {error}
@@ -64,8 +64,8 @@ export const RepositoryInput: React.FC<RepositoryInputProps> = ({ onSubmit }) =>
       )}
 
       <Form onSubmit={handleSubmit}>
-        <FormGroup label="Repository URL" isRequired fieldId="repo-url">
-          <div style={{ display: 'flex', gap: '1rem' }}>
+        <FormGroup fieldId="repo-url">
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <TextInput
               id="repo-url"
               type="text"
@@ -83,8 +83,11 @@ export const RepositoryInput: React.FC<RepositoryInputProps> = ({ onSubmit }) =>
               isLoading={isLoading}
               isDisabled={isLoading}
             >
-              Add Repository
+              {isLoading ? 'Adding...' : 'Add & Assess'}
             </Button>
+          </div>
+          <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#6a6e73' }}>
+            Enter a GitHub URL or local path to assess repository quality
           </div>
         </FormGroup>
       </Form>

@@ -79,7 +79,7 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
 
   return (
     <Card>
-      <CardTitle style={{ color: '#151515' }}>
+      <CardTitle style={{ color: '#151515', fontWeight: 600 }}>
         📋 Recommendations ({recommendations.length})
       </CardTitle>
       <CardBody>

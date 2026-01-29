@@ -31,8 +31,10 @@ export const RadarChart: React.FC<RadarChartProps> = ({
 
   return (
     <Card style={{ height: '100%' }}>
-      <CardTitle style={{ color: '#151515' }}>📈 Quality Dimensions</CardTitle>
-      <CardBody style={{ display: 'flex', flexDirection: 'column', minHeight: '350px' }}>
+      <CardTitle style={{ color: '#151515', fontWeight: 600 }}>
+        📈 Quality Dimensions
+      </CardTitle>
+      <CardBody style={{ display: 'flex', flexDirection: 'column', minHeight: '420px' }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0' }}>
           {dimensions.map((dim, index) => {
             const percentage = dim.score;

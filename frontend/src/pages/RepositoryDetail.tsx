@@ -239,7 +239,15 @@ export const RepositoryDetail: React.FC = () => {
         </Breadcrumb>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
-          <Button variant="plain" icon={<ArrowLeftIcon />} onClick={() => navigate('/')}>
+          <Button 
+            variant="secondary" 
+            icon={<ArrowLeftIcon />} 
+            onClick={() => navigate('/')}
+            style={{ 
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+            }}
+          >
             Back
           </Button>
           <div>

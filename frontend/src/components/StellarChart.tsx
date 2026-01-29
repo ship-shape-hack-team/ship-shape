@@ -17,10 +17,10 @@ export const StellarChart: React.FC<StellarChartProps> = ({
   repositoryName,
 }) => {
   // Larger viewBox to accommodate labels
-  const size = 400;
+  const size = 500;
   const center = size / 2;
-  const radius = 90;
-  const labelDistance = 55; // Distance from radius to labels
+  const radius = 130;
+  const labelDistance = 65; // Distance from radius to labels
 
   // Prepare data points (with null safety)
   const results = assessorResults || [];
@@ -91,13 +91,15 @@ export const StellarChart: React.FC<StellarChartProps> = ({
 
   return (
     <Card style={{ height: '100%' }}>
-      <CardTitle style={{ color: '#151515' }}>📊 Quality Radar</CardTitle>
-      <CardBody style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px' }}>
+      <CardTitle style={{ color: '#151515', fontWeight: 600 }}>
+        📊 Quality Radar
+      </CardTitle>
+      <CardBody style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '420px' }}>
         <svg 
           width="100%" 
-          height="320" 
+          height="400" 
           viewBox={`0 0 ${size} ${size}`}
-          style={{ maxWidth: '400px', overflow: 'visible' }}
+          style={{ maxWidth: '500px', overflow: 'visible' }}
         >
           {/* Reference circles */}
           {referenceCircles}
@@ -121,7 +123,7 @@ export const StellarChart: React.FC<StellarChartProps> = ({
               key={index}
               cx={point.x}
               cy={point.y}
-              r="4"
+              r="6"
               fill={strokeColor}
             />
           ))}
@@ -134,16 +136,16 @@ export const StellarChart: React.FC<StellarChartProps> = ({
             const textAnchor = isRight ? 'start' : isLeft ? 'end' : 'middle';
 
             // Format name - allow longer names now
-            const shortName = point.name.length > 18 
-              ? point.name.substring(0, 15) + '...' 
+            const shortName = point.name.length > 20 
+              ? point.name.substring(0, 17) + '...' 
               : point.name;
 
             return (
               <g key={index}>
                 <text
                   x={point.labelX}
-                  y={point.labelY - 6}
-                  fontSize="10"
+                  y={point.labelY - 8}
+                  fontSize="12"
                   fontWeight="500"
                   fill="#151515"
                   textAnchor={textAnchor}
@@ -152,8 +154,8 @@ export const StellarChart: React.FC<StellarChartProps> = ({
                 </text>
                 <text
                   x={point.labelX}
-                  y={point.labelY + 10}
-                  fontSize="12"
+                  y={point.labelY + 12}
+                  fontSize="14"
                   fontWeight="bold"
                   fill={strokeColor}
                   textAnchor={textAnchor}
@@ -165,7 +167,7 @@ export const StellarChart: React.FC<StellarChartProps> = ({
           })}
 
           {/* Center point */}
-          <circle cx={center} cy={center} r="2" fill="#151515" />
+          <circle cx={center} cy={center} r="4" fill="#151515" />
         </svg>
 
         <div style={{ marginTop: '0.5rem', textAlign: 'center', color: '#6a6e73', fontSize: '0.85rem' }}>

@@ -15,15 +15,11 @@ import {
   Td,
 } from '@patternfly/react-table';
 import {
-  EmptyState,
-  EmptyStateIcon,
-  EmptyStateBody,
-  Title,
   Label,
   Button,
   Spinner,
 } from '@patternfly/react-core';
-import { CubesIcon, RedoIcon, InProgressIcon, CheckCircleIcon, ExclamationCircleIcon, TrashIcon } from '@patternfly/react-icons';
+import { RedoIcon, InProgressIcon, CheckCircleIcon, ExclamationCircleIcon, TrashIcon } from '@patternfly/react-icons';
 import { RepositorySummary } from '../types';
 import { getScoreColor, getPerformanceTier, getStatusBadgeColor, getStatusLabel } from '../types';
 import { TrendIcon } from './TrendIcon';
@@ -151,15 +147,9 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
 
   if (repositories.length === 0) {
     return (
-      <EmptyState>
-        <EmptyStateIcon icon={CubesIcon} />
-        <Title headingLevel="h4" size="lg">
-          No repositories assessed yet
-        </Title>
-        <EmptyStateBody>
-          Add a repository using the input field above to begin quality assessment.
-        </EmptyStateBody>
-      </EmptyState>
+      <div style={{ textAlign: 'center', padding: '2rem', color: '#6a6e73' }}>
+        No repositories to display
+      </div>
     );
   }
 
@@ -223,7 +213,12 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
               <Tr
                 key={repo.repo_url}
                 onClick={() => onRowClick(repo)}
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = ''}
               >
                 <Td dataLabel="Repository">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
