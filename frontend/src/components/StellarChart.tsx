@@ -16,9 +16,9 @@ export const StellarChart: React.FC<StellarChartProps> = ({
   assessorResults,
   repositoryName,
 }) => {
-  const size = 400;
+  const size = 600;
   const center = size / 2;
-  const radius = size / 2 - 60;
+  const radius = 150; // Smaller radius to leave more room for labels
 
   // Prepare data points (with null safety)
   const results = assessorResults || [];
@@ -34,8 +34,8 @@ export const StellarChart: React.FC<StellarChartProps> = ({
       angle: angle,
       x: center + Math.cos(angle) * radius * score,
       y: center + Math.sin(angle) * radius * score,
-      labelX: center + Math.cos(angle) * (radius + 40),
-      labelY: center + Math.sin(angle) * (radius + 40),
+      labelX: center + Math.cos(angle) * (radius + 100),
+      labelY: center + Math.sin(angle) * (radius + 100),
     };
   });
 
@@ -140,23 +140,48 @@ export const StellarChart: React.FC<StellarChartProps> = ({
                 point.labelX < center - 10 ? 'end' :
                 'middle';
 
+              // Split long text into multiple lines if needed
+              const maxCharsPerLine = 12;
+              const words = point.name.split(' ');
+              const lines: string[] = [];
+              let currentLine = '';
+
+              words.forEach(word => {
+                if ((currentLine + word).length > maxCharsPerLine && currentLine.length > 0) {
+                  lines.push(currentLine.trim());
+                  currentLine = word + ' ';
+                } else {
+                  currentLine += word + ' ';
+                }
+              });
+              if (currentLine) lines.push(currentLine.trim());
+              
+              // Limit to max 3 lines
+              if (lines.length > 3) {
+                lines.splice(2, lines.length - 2, lines.slice(2).join(' '));
+              }
+
               return (
                 <g key={index}>
+                  {lines.map((line, lineIndex) => (
+                    <text
+                      key={lineIndex}
+                      x={point.labelX}
+                      y={point.labelY + (lineIndex - lines.length / 2 + 0.5) * 14}
+                      fontSize="10"
+                      fontWeight="500"
+                      fill="#151515"
+                      textAnchor={textAnchor}
+                      dominantBaseline="middle"
+                    >
+                      {line}
+                    </text>
+                  ))}
                   <text
                     x={point.labelX}
-                    y={point.labelY}
+                    y={point.labelY + (lines.length / 2 + 0.5) * 13}
                     fontSize="12"
-                    fontWeight="500"
-                    fill="#151515"
-                    textAnchor={textAnchor}
-                    dominantBaseline="middle"
-                  >
-                    {point.name}
-                  </text>
-                  <text
-                    x={point.labelX}
-                    y={point.labelY + 14}
-                    fontSize="11"
+                    fontWeight="bold"
                     fill="#6a6e73"
                     textAnchor={textAnchor}
                     dominantBaseline="middle"
