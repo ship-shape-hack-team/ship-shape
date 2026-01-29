@@ -3,6 +3,9 @@
  */
 
 import React, { useState } from 'react';
+
+type SortColumn = 'name' | 'language' | 'score' | 'tier' | 'trend' | 'last_assessed';
+type SortDirection = 'asc' | 'desc';
 import {
   Table,
   Thead,
@@ -46,6 +49,24 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
   reassessingRepos = new Set(),
 }) => {
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn>('score');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc'); // Lowest to Highest
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn === column) {
+      return sortDirection === 'asc' ? ' ▲' : ' ▼';
+    }
+    return ' ⇅';
+  };
 
   const handleTrendClick = (repo: RepositorySummary) => (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
@@ -60,6 +81,50 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
   const handleCloseModal = () => {
     setSelectedRepo(null);
   };
+
+  // Sort repositories
+  const sortedRepositories = [...repositories].sort((a, b) => {
+    let aValue: any;
+    let bValue: any;
+
+    switch (sortColumn) {
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'language':
+        aValue = a.primary_language || 'zzz';
+        bValue = b.primary_language || 'zzz';
+        break;
+      case 'score':
+        aValue = a.overall_score || 0;
+        bValue = b.overall_score || 0;
+        break;
+      case 'tier':
+        const tierOrder: Record<string, number> = { 'Low': 0, 'Medium': 1, 'High': 2, 'Elite': 3 };
+        aValue = tierOrder[getPerformanceTier(a.overall_score || 0)] || 0;
+        bValue = tierOrder[getPerformanceTier(b.overall_score || 0)] || 0;
+        break;
+      case 'trend':
+        const aTrend = calculateTrend(historicalData[a.repo_url] || []);
+        const bTrend = calculateTrend(historicalData[b.repo_url] || []);
+        const trendOrder = { 'declining': 0, 'stable': 1, 'improving': 2, 'no_data': 3 };
+        aValue = trendOrder[aTrend];
+        bValue = trendOrder[bTrend];
+        break;
+      case 'last_assessed':
+        aValue = a.last_assessed ? new Date(a.last_assessed).getTime() : 0;
+        bValue = b.last_assessed ? new Date(b.last_assessed).getTime() : 0;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   if (isLoading) {
     return (
       <div style={{ textAlign: 'center', padding: '3rem' }}>
@@ -94,15 +159,35 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
           <Tr>
             <Th>Repository</Th>
             <Th>Language</Th>
-            <Th>Overall Score</Th>
-            <Th>Tier</Th>
-            <Th>6-Month Trend</Th>
-            <Th>Last Assessed</Th>
+            <Th 
+              onClick={() => handleSort('score')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Overall Score{getSortIcon('score')}
+            </Th>
+            <Th 
+              onClick={() => handleSort('tier')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Tier{getSortIcon('tier')}
+            </Th>
+            <Th 
+              onClick={() => handleSort('trend')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              6-Month Trend{getSortIcon('trend')}
+            </Th>
+            <Th 
+              onClick={() => handleSort('last_assessed')}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Last Assessed{getSortIcon('last_assessed')}
+            </Th>
             <Th modifier="fitContent">Actions</Th>
           </Tr>
         </Thead>
       <Tbody>
-        {repositories.map(repo => {
+        {sortedRepositories.map(repo => {
           const score = repo.overall_score || 0;
           const tier = getPerformanceTier(score);
           const scoreColor = getScoreColor(score);
