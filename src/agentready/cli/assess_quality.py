@@ -14,6 +14,7 @@ from ..assessors.quality import (
     EcosystemToolsAssessor,
     IntegrationTestsAssessor,
     TestCoverageAssessor,
+    UnitTestNamingAssessor,
 )
 from ..models.assessment import Assessment
 from ..models.assessor_result import AssessorResult
@@ -92,6 +93,7 @@ def assess_quality(repo_path: str, format: str, output: Optional[str], assessors
             "documentation_standards": DocumentationStandardsAssessor(),
             "ecosystem_tools": EcosystemToolsAssessor(),
             "api_documentation": APIDocumentationAssessor(),
+            "unit_test_naming": UnitTestNamingAssessor(),
         }
 
         # Filter assessors if specified
