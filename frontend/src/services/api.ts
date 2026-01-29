@@ -96,6 +96,13 @@ class ApiClient {
     return response.data;
   }
 
+  async deleteRepository(repo_url: string) {
+    const response = await this.client.delete('/repositories', {
+      params: { repo_url }
+    });
+    return response.data;
+  }
+
   // Assessments
   async createAssessment(repo_url: string, assessors?: string[]) {
     const response = await this.client.post('/assessments', {

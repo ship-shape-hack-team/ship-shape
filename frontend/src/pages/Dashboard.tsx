@@ -69,22 +69,22 @@ export const Dashboard: React.FC = () => {
   const handleReassess = async (repo: RepositorySummary) => {
     // Add to reassessing set
     setReassessingRepos(prev => new Set(prev).add(repo.repo_url));
-    
+
     try {
       await apiClient.reassessRepository(repo.repo_url);
-      
+
       // Poll for completion (simple approach - check every 5 seconds for 5 minutes)
       let attempts = 0;
       const maxAttempts = 60; // 5 minutes
       const pollInterval = 5000; // 5 seconds
-      
+
       const pollForCompletion = setInterval(async () => {
         attempts++;
-        
+
         try {
           // Reload repositories to get updated assessment
           await refresh();
-          
+
           if (attempts >= maxAttempts) {
             clearInterval(pollForCompletion);
             setReassessingRepos(prev => {
@@ -98,7 +98,7 @@ export const Dashboard: React.FC = () => {
           console.error('Error polling for assessment completion:', err);
         }
       }, pollInterval);
-      
+
       // Stop reassessing indicator after 30 seconds regardless
       setTimeout(() => {
         setReassessingRepos(prev => {
@@ -107,7 +107,7 @@ export const Dashboard: React.FC = () => {
           return next;
         });
       }, 30000);
-      
+
     } catch (err) {
       console.error('Failed to trigger reassessment:', err);
       setReassessingRepos(prev => {
@@ -116,6 +116,18 @@ export const Dashboard: React.FC = () => {
         return next;
       });
       alert('Failed to trigger reassessment. Please try again.');
+    }
+  };
+
+  const handleDelete = async (repo: RepositorySummary) => {
+    try {
+      await apiClient.deleteRepository(repo.repo_url);
+
+      // Refresh repositories to remove deleted repo from UI
+      await refresh();
+    } catch (err) {
+      console.error('Failed to delete repository:', err);
+      alert('Failed to delete repository. Please try again.');
     }
   };
 
@@ -163,6 +175,7 @@ export const Dashboard: React.FC = () => {
             onRowClick={handleRowClick}
             onTrendClick={() => {}}
             onReassess={handleReassess}
+            onDelete={handleDelete}
             historicalData={historicalData}
             isLoading={isLoading}
             reassessingRepos={reassessingRepos}

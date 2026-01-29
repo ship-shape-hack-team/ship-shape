@@ -23,7 +23,7 @@ import {
   Button,
   Spinner,
 } from '@patternfly/react-core';
-import { CubesIcon, RedoIcon, InProgressIcon, CheckCircleIcon, ExclamationCircleIcon } from '@patternfly/react-icons';
+import { CubesIcon, RedoIcon, InProgressIcon, CheckCircleIcon, ExclamationCircleIcon, TrashIcon } from '@patternfly/react-icons';
 import { RepositorySummary } from '../types';
 import { getScoreColor, getPerformanceTier, getStatusBadgeColor, getStatusLabel } from '../types';
 import { TrendIcon } from './TrendIcon';
@@ -34,6 +34,7 @@ interface RepositoryTableProps {
   onRowClick: (repo: RepositorySummary) => void;
   onTrendClick: (repo: RepositorySummary) => void;
   onReassess: (repo: RepositorySummary) => void;
+  onDelete: (repo: RepositorySummary) => void;
   historicalData: Record<string, any[]>;
   isLoading?: boolean;
   reassessingRepos?: Set<string>;
@@ -44,6 +45,7 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
   onRowClick,
   onTrendClick,
   onReassess,
+  onDelete,
   historicalData,
   isLoading = false,
   reassessingRepos = new Set(),
@@ -76,6 +78,15 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
   const handleReassessClick = (repo: RepositorySummary) => (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
     onReassess(repo);
+  };
+
+  const handleDeleteClick = (repo: RepositorySummary) => (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+
+    // Confirm deletion
+    if (window.confirm(`Are you sure you want to delete ${repo.name}? This will remove all assessment history for this repository.`)) {
+      onDelete(repo);
+    }
   };
 
   const handleCloseModal = () => {
@@ -271,6 +282,15 @@ export const RepositoryTable: React.FC<RepositoryTableProps> = ({
                     isDisabled={reassessingRepos.has(repo.repo_url)}
                     aria-label={`Reassess ${repo.name}`}
                     icon={reassessingRepos.has(repo.repo_url) ? <Spinner size="sm" /> : <RedoIcon />}
+                    isInline
+                  />
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={handleDeleteClick(repo)}
+                    aria-label={`Delete ${repo.name}`}
+                    icon={<TrashIcon />}
+                    isDanger
                     isInline
                   />
                 </Td>

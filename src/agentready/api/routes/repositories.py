@@ -2,7 +2,6 @@
 
 import asyncio
 from typing import Optional
-from urllib.parse import unquote
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
@@ -225,13 +224,59 @@ async def reassess_repository(
         raise HTTPException(status_code=500, detail=f"Failed to trigger reassessment: {str(e)}")
 
 
-@router.delete("/repositories/{repo_url_encoded}", status_code=204)
-async def delete_repository(repo_url_encoded: str):
-    """Delete a repository.
+@router.delete("/repositories", status_code=204)
+async def delete_repository(repo_url: str = Query(..., description="Repository URL to delete")):
+    """Delete a repository and all its assessment history.
 
     Args:
-        repo_url_encoded: URL-encoded repository URL
+        repo_url: Repository URL (query parameter)
+
+    Returns:
+        No content (204)
     """
-    repo_url = unquote(repo_url_encoded)
-    # Note: Would implement cascade delete of assessments
-    pass
+    from ...storage.connection import get_db_session
+    from sqlalchemy import text
+
+    try:
+        store = AssessmentStore()
+
+        # Verify repository exists
+        repo_data = store.get_repository(repo_url)
+        if not repo_data:
+            raise HTTPException(status_code=404, detail=f"Repository not found: {repo_url}")
+
+        # Cascade delete: assessor_results -> assessments -> repository
+        with get_db_session() as session:
+            # Delete assessor results for all assessments of this repository
+            delete_assessor_results_query = text("""
+                DELETE FROM assessor_results
+                WHERE assessment_id IN (
+                    SELECT id FROM assessments WHERE repo_url = :repo_url
+                )
+            """)
+            session.execute(delete_assessor_results_query, {"repo_url": repo_url})
+
+            # Delete all assessments for this repository
+            delete_assessments_query = text("""
+                DELETE FROM assessments WHERE repo_url = :repo_url
+            """)
+            session.execute(delete_assessments_query, {"repo_url": repo_url})
+
+            # Delete the repository
+            delete_repository_query = text("""
+                DELETE FROM repositories WHERE repo_url = :repo_url
+            """)
+            result = session.execute(delete_repository_query, {"repo_url": repo_url})
+
+            if result.rowcount == 0:
+                raise HTTPException(status_code=404, detail=f"Repository not found: {repo_url}")
+
+        return None
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"ERROR in delete_repository: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to delete repository: {str(e)}")
