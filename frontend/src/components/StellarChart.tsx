@@ -1,5 +1,5 @@
 /**
- * Stellar/Star chart component for visualizing quality dimensions in a radial star pattern
+ * Stellar/Star chart component for visualizing quality dimensions
  */
 
 import React from 'react';
@@ -16,16 +16,18 @@ export const StellarChart: React.FC<StellarChartProps> = ({
   assessorResults,
   repositoryName,
 }) => {
-  const size = 600;
+  // Larger viewBox to accommodate labels
+  const size = 400;
   const center = size / 2;
-  const radius = 150; // Smaller radius to leave more room for labels
+  const radius = 90;
+  const labelDistance = 55; // Distance from radius to labels
 
   // Prepare data points (with null safety)
   const results = assessorResults || [];
   const dataPoints = results.map((result, index) => {
     const angle = (index / (results.length || 1)) * 2 * Math.PI - Math.PI / 2;
     const scoreValue = result.score ?? 0;
-    const score = scoreValue / 100; // Normalize to 0-1
+    const score = scoreValue / 100;
 
     return {
       name: formatAssessorName(result.assessor_name),
@@ -34,8 +36,8 @@ export const StellarChart: React.FC<StellarChartProps> = ({
       angle: angle,
       x: center + Math.cos(angle) * radius * score,
       y: center + Math.sin(angle) * radius * score,
-      labelX: center + Math.cos(angle) * (radius + 100),
-      labelY: center + Math.sin(angle) * (radius + 100),
+      labelX: center + Math.cos(angle) * (radius + labelDistance),
+      labelY: center + Math.sin(angle) * (radius + labelDistance),
     };
   });
 
@@ -46,7 +48,7 @@ export const StellarChart: React.FC<StellarChartProps> = ({
   }).join(' ') + ' Z';
 
   // Generate reference circles
-  const referenceCircles = [25, 50, 75, 100].map(percent => {
+  const referenceCircles = [50, 100].map(percent => {
     const r = radius * (percent / 100);
     return (
       <circle
@@ -57,7 +59,7 @@ export const StellarChart: React.FC<StellarChartProps> = ({
         fill="none"
         stroke="#e0e0e0"
         strokeWidth="1"
-        strokeDasharray={percent === 100 ? "none" : "4,4"}
+        strokeDasharray={percent === 100 ? "none" : "3,3"}
       />
     );
   });
@@ -70,7 +72,7 @@ export const StellarChart: React.FC<StellarChartProps> = ({
       y1={center}
       x2={center + Math.cos(point.angle) * radius}
       y2={center + Math.sin(point.angle) * radius}
-      stroke="#d0d0d0"
+      stroke="#e8e8e8"
       strokeWidth="1"
     />
   ));
@@ -79,127 +81,95 @@ export const StellarChart: React.FC<StellarChartProps> = ({
   const avgScore = dataPoints.length > 0 
     ? dataPoints.reduce((sum, p) => sum + p.score, 0) / dataPoints.length 
     : 0;
-  const fillColor = avgScore >= 75 ? 'rgba(62, 134, 53, 0.3)' : 
-                    avgScore >= 60 ? 'rgba(240, 171, 0, 0.3)' : 
-                    'rgba(201, 25, 11, 0.3)';
+  const fillColor = avgScore >= 75 ? 'rgba(62, 134, 53, 0.25)' : 
+                    avgScore >= 60 ? 'rgba(240, 171, 0, 0.25)' : 
+                    'rgba(201, 25, 11, 0.25)';
   
   const strokeColor = avgScore >= 75 ? '#3E8635' : 
                       avgScore >= 60 ? '#F0AB00' : 
                       '#C9190B';
 
   return (
-    <Card>
-      <CardTitle>Quality Stellar Chart for {repositoryName}</CardTitle>
-      <CardBody>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-            {/* Reference circles */}
-            {referenceCircles}
+    <Card style={{ height: '100%' }}>
+      <CardTitle style={{ color: '#151515' }}>📊 Quality Radar</CardTitle>
+      <CardBody style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px' }}>
+        <svg 
+          width="100%" 
+          height="320" 
+          viewBox={`0 0 ${size} ${size}`}
+          style={{ maxWidth: '400px', overflow: 'visible' }}
+        >
+          {/* Reference circles */}
+          {referenceCircles}
 
-            {/* Axis lines */}
-            {axisLines}
+          {/* Axis lines */}
+          {axisLines}
 
-            {/* Reference circle labels */}
-            <text x={center + 5} y={center - radius} fontSize="10" fill="#999" textAnchor="middle">
-              100
-            </text>
-            <text x={center + 5} y={center - radius * 0.75} fontSize="10" fill="#999" textAnchor="middle">
-              75
-            </text>
-            <text x={center + 5} y={center - radius * 0.5} fontSize="10" fill="#999" textAnchor="middle">
-              50
-            </text>
-            <text x={center + 5} y={center - radius * 0.25} fontSize="10" fill="#999" textAnchor="middle">
-              25
-            </text>
-
-            {/* Data star */}
+          {/* Data star */}
+          {dataPoints.length > 0 && (
             <path
               d={starPath}
               fill={fillColor}
               stroke={strokeColor}
               strokeWidth="2"
             />
+          )}
 
-            {/* Data points */}
-            {dataPoints.map((point, index) => (
-              <circle
-                key={index}
-                cx={point.x}
-                cy={point.y}
-                r="4"
-                fill={strokeColor}
-              />
-            ))}
+          {/* Data points */}
+          {dataPoints.map((point, index) => (
+            <circle
+              key={index}
+              cx={point.x}
+              cy={point.y}
+              r="4"
+              fill={strokeColor}
+            />
+          ))}
 
-            {/* Labels */}
-            {dataPoints.map((point, index) => {
-              // Adjust text anchor based on position
-              const textAnchor = 
-                point.labelX > center + 10 ? 'start' :
-                point.labelX < center - 10 ? 'end' :
-                'middle';
+          {/* Labels */}
+          {dataPoints.map((point, index) => {
+            // Determine text anchor based on position
+            const isRight = point.labelX > center + 10;
+            const isLeft = point.labelX < center - 10;
+            const textAnchor = isRight ? 'start' : isLeft ? 'end' : 'middle';
 
-              // Split long text into multiple lines if needed
-              const maxCharsPerLine = 12;
-              const words = point.name.split(' ');
-              const lines: string[] = [];
-              let currentLine = '';
+            // Format name - allow longer names now
+            const shortName = point.name.length > 18 
+              ? point.name.substring(0, 15) + '...' 
+              : point.name;
 
-              words.forEach(word => {
-                if ((currentLine + word).length > maxCharsPerLine && currentLine.length > 0) {
-                  lines.push(currentLine.trim());
-                  currentLine = word + ' ';
-                } else {
-                  currentLine += word + ' ';
-                }
-              });
-              if (currentLine) lines.push(currentLine.trim());
-              
-              // Limit to max 3 lines
-              if (lines.length > 3) {
-                lines.splice(2, lines.length - 2, lines.slice(2).join(' '));
-              }
+            return (
+              <g key={index}>
+                <text
+                  x={point.labelX}
+                  y={point.labelY - 6}
+                  fontSize="10"
+                  fontWeight="500"
+                  fill="#151515"
+                  textAnchor={textAnchor}
+                >
+                  {shortName}
+                </text>
+                <text
+                  x={point.labelX}
+                  y={point.labelY + 10}
+                  fontSize="12"
+                  fontWeight="bold"
+                  fill={strokeColor}
+                  textAnchor={textAnchor}
+                >
+                  {point.score.toFixed(0)}
+                </text>
+              </g>
+            );
+          })}
 
-              return (
-                <g key={index}>
-                  {lines.map((line, lineIndex) => (
-                    <text
-                      key={lineIndex}
-                      x={point.labelX}
-                      y={point.labelY + (lineIndex - lines.length / 2 + 0.5) * 14}
-                      fontSize="10"
-                      fontWeight="500"
-                      fill="#151515"
-                      textAnchor={textAnchor}
-                      dominantBaseline="middle"
-                    >
-                      {line}
-                    </text>
-                  ))}
-                  <text
-                    x={point.labelX}
-                    y={point.labelY + (lines.length / 2 + 0.5) * 13}
-                    fontSize="12"
-                    fontWeight="bold"
-                    fill="#6a6e73"
-                    textAnchor={textAnchor}
-                    dominantBaseline="middle"
-                  >
-                    {point.score.toFixed(1)}
-                  </text>
-                </g>
-              );
-            })}
+          {/* Center point */}
+          <circle cx={center} cy={center} r="2" fill="#151515" />
+        </svg>
 
-            {/* Center point */}
-            <circle cx={center} cy={center} r="3" fill="#151515" />
-          </svg>
-        </div>
-
-        {/* Legend */}
-        <div style={{ marginTop: '1rem', textAlign: 'center', color: '#6a6e73', fontSize: '0.9em' }}>
-          <strong style={{ color: '#151515' }}>Average Score:</strong> {avgScore.toFixed(1)}/100
+        <div style={{ marginTop: '0.5rem', textAlign: 'center', color: '#6a6e73', fontSize: '0.85rem' }}>
+          Average: <strong style={{ color: strokeColor }}>{avgScore.toFixed(0)}/100</strong>
         </div>
       </CardBody>
     </Card>

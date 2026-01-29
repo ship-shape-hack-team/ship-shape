@@ -16,7 +16,6 @@ import {
   BreadcrumbItem,
 } from '@patternfly/react-core';
 import { ArrowLeftIcon } from '@patternfly/react-icons';
-import { ScoreCard } from '../components/ScoreCard';
 import { RadarChart } from '../components/RadarChart';
 import { StellarChart } from '../components/StellarChart';
 import { DrillDownView } from '../components/DrillDownView';
@@ -244,10 +243,55 @@ export const RepositoryDetail: React.FC = () => {
             Back
           </Button>
           <div>
-            <Title headingLevel="h1" size="2xl" style={{ color: '#151515' }}>
+            <Title headingLevel="h1" size="2xl" style={{ color: '#151515', margin: 0 }}>
               {repository.name}
             </Title>
-            <p style={{ color: '#6a6e73' }}>{repository.repo_url}</p>
+            <p style={{ color: '#6a6e73', marginTop: '0.25rem', marginBottom: 0 }}>{repository.repo_url}</p>
+          </div>
+          
+          {/* Overall Score - Center */}
+          <div style={{ 
+            flex: 1,
+            display: 'flex', 
+            justifyContent: 'center',
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '12px',
+              backgroundColor: assessment.overall_score >= 75 ? 'rgba(62, 134, 53, 0.1)' : 
+                               assessment.overall_score >= 60 ? 'rgba(240, 171, 0, 0.1)' : 
+                               'rgba(201, 25, 11, 0.1)',
+              border: `2px solid ${assessment.overall_score >= 75 ? '#3E8635' : 
+                                   assessment.overall_score >= 60 ? '#F0AB00' : '#C9190B'}`,
+            }}>
+              <span style={{ fontSize: '0.9rem', color: '#6a6e73', fontWeight: 500 }}>Overall Score</span>
+              <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span style={{ 
+                  fontSize: '2rem', 
+                  fontWeight: 'bold', 
+                  color: assessment.overall_score >= 75 ? '#3E8635' : 
+                         assessment.overall_score >= 60 ? '#F0AB00' : '#C9190B',
+                  lineHeight: 1,
+                }}>
+                  {assessment.overall_score.toFixed(0)}
+                </span>
+                <span style={{ fontSize: '0.9rem', color: '#6a6e73', marginLeft: '0.15rem' }}>/100</span>
+              </div>
+              <span style={{ 
+                fontSize: '0.75rem', 
+                color: '#fff',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '4px',
+                fontWeight: 600,
+                backgroundColor: assessment.overall_score >= 75 ? '#3E8635' : 
+                                 assessment.overall_score >= 60 ? '#F0AB00' : '#C9190B',
+              }}>
+                {tier}
+              </span>
+            </div>
           </div>
         </div>
       </PageSection>
@@ -262,40 +306,43 @@ export const RepositoryDetail: React.FC = () => {
 
       <PageSection>
         <Grid hasGutter>
+          {/* Charts Section - Side by Side with Equal Height */}
           <GridItem span={12}>
-            <ScoreCard
-              title="Overall Quality Score"
-              score={assessment.overall_score}
-              subtitle={`${tier} Performance`}
-            />
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, 1fr)', 
+              gap: '1rem',
+              alignItems: 'stretch'
+            }}>
+              <StellarChart
+                assessorResults={assessment.assessor_results || []}
+                repositoryName={repository.name}
+              />
+              <RadarChart
+                assessorResults={assessment.assessor_results || []}
+                repositoryName={repository.name}
+              />
+            </div>
           </GridItem>
 
-          <GridItem span={6}>
-            <StellarChart
-              assessorResults={assessment.assessor_results || []}
-              repositoryName={repository.name}
-            />
-          </GridItem>
-
-          <GridItem span={6}>
-            <RadarChart
-              assessorResults={assessment.assessor_results || []}
-              repositoryName={repository.name}
-            />
-          </GridItem>
-
+          {/* Detailed Results Section */}
           <GridItem span={12}>
-            <Title headingLevel="h2" size="xl" style={{ marginTop: '2rem', marginBottom: '1rem', color: '#151515' }}>
-              Detailed Results
+            <Title headingLevel="h2" size="xl" style={{ marginTop: '1.5rem', marginBottom: '1rem', color: '#151515' }}>
+              📋 Detailed Results
             </Title>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, 1fr)', 
+              gap: '1rem',
+              alignItems: 'stretch',
+            }}>
+              {(assessment.assessor_results || []).map(result => (
+                <DrillDownView key={result.id} assessorResult={result} />
+              ))}
+            </div>
           </GridItem>
 
-          {(assessment.assessor_results || []).map(result => (
-            <GridItem span={6} key={result.id}>
-              <DrillDownView assessorResult={result} />
-            </GridItem>
-          ))}
-
+          {/* Recommendations Section */}
           <GridItem span={12}>
             <RecommendationsList 
               recommendations={
